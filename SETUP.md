@@ -175,7 +175,7 @@ curl -X DELETE http://localhost:8080/api/v1/jobs/<job-id>
 | Docker pull is slow | Normal on first run; it caches after that. |
 | `docker: 'compose' is not a docker command` / `unknown shorthand flag: 'd'` | The Compose plugin is missing. It ships with Docker Desktop — uninstalling Desktop leaves a **dangling symlink** in `~/.docker/cli-plugins/` that looks installed but isn't (`ls -l ~/.docker/cli-plugins/docker-compose`). Install it (`brew install docker-compose`), or skip Compose entirely — see *No Compose?* below. |
 | `no space left on device` while pulling | The **VM's** disk is full, not your Mac's — Colima/Lima/Docker Desktop each run a fixed-size virtual disk. Check with `docker system df`, reclaim with `docker image prune -a`, or grow the disk (Colima: `colima stop && colima start --disk 60`). The image bundles Chromium, so budget a few GB. |
-| `could not install driver: … 404 … playwright.azureedge.net` | Only hits you when running the scraper **natively** (not in Docker) — the Docker image has the driver baked in. Playwright's old Azure CDN is retired; as of Sept 2026 the replacement hosts 400 too. Workaround under *Running without Docker* below. |
+| `could not install driver: … 404 … playwright.azureedge.net` | In Docker, you are on an old image: `v1.15.0` and earlier download a driver build that no longer exists. Use the pinned `v1.18.1` in `docker-compose.yml`, then `docker compose pull && docker compose up -d`. Natively, see below. Playwright's old Azure CDN is retired; as of Sept 2026 the replacement hosts 400 too. Workaround under *Running without Docker* below. |
 
 
 ### No Compose? Run the same container with `docker run`
@@ -186,7 +186,7 @@ curl -X DELETE http://localhost:8080/api/v1/jobs/<job-id>
 docker run -d --name gmaps-scraper --restart unless-stopped \
   -p 127.0.0.1:8080:8080 \
   -v gmaps_data:/gmapsdata -v gmaps_cache:/opt \
-  gosom/google-maps-scraper:v1.15.0 -web -data-folder /gmapsdata
+  gosom/google-maps-scraper:v1.18.1 -web -data-folder /gmapsdata
 ```
 
 Add `--platform linux/amd64` on Apple Silicon. Stop it with `docker stop gmaps-scraper`.
@@ -198,7 +198,7 @@ scraper natively. It's a single Go binary, and it serves the **same API on the s
 script and slash command in this kit works unchanged.
 
 ```bash
-go install github.com/gosom/google-maps-scraper@v1.15.0
+go install github.com/gosom/google-maps-scraper@v1.18.1
 google-maps-scraper -web -addr 127.0.0.1:8080 -data-folder ./gmapsdata
 ```
 
