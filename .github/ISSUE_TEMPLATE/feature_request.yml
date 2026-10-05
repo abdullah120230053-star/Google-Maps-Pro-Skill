@@ -1,0 +1,11 @@
+name: Feature request
+description: Suggest an improvement to the kit.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What should the kit do?
+      description: Describe the problem it solves for you.
+    validations:
+      required: true

@@ -41,9 +41,11 @@ a precise operating manual for it. Result: dozens to hundreds of verified listin
 
 ## Quick start
 
-Requires Docker Desktop.
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop). Python 3 is optional (standard library only).
 
 ```bash
+git clone https://github.com/Mahanaicoach/google-maps-scraper-kit.git
+cd google-maps-scraper-kit
 docker compose up -d
 ```
 
@@ -54,6 +56,17 @@ docker compose up -d
 Or open the folder in Claude Code and say:
 
 > Scrape gyms in Miami and give me phones and websites.
+
+### Example output
+
+`coffee_shops_austin.csv` (illustrative rows):
+
+| title | phone | emails | website | category | address | review_rating | review_count |
+|---|---|---|---|---|---|---|---|
+| Example Roasters | +1 512-555-0101 | hello@example.com | example.com | Coffee shop | 100 Congress Ave, Austin, TX | 4.7 | 812 |
+| Sample Espresso Bar | +1 512-555-0102 | info@example.org | example.org | Cafe | 200 S Lamar Blvd, Austin, TX | 4.5 | 356 |
+
+Add `--socials` for `instagram`, `facebook` and `linkedin` columns, or `--full` for all ~34 raw fields.
 
 Detailed setup: [SETUP.md](SETUP.md). Skill reference: [SKILL.md](.claude/skills/google-maps-scraper/SKILL.md).
 
@@ -114,8 +127,16 @@ google-maps-scraper-kit/
 │   ├── commands/           /scrape, /scrape-batch, /scrape-setup, /scrape-jobs
 │   └── skills/google-maps-scraper/SKILL.md
 ├── CLAUDE.md               project instructions for Claude Code
+├── CREDITS.md              scraping engine attribution and license
 └── SETUP.md                full setup guide
 ```
+
+## Support
+
+Found a bug? [Open an issue](https://github.com/Mahanaicoach/google-maps-scraper-kit/issues/new/choose) with
+the command you ran and the error. Issues are for problems with the kit. Run your own scrapes with the
+quick start above; requests like "find me hotels in Hamburg" are closed without action.
+Contributions: [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).
 
 ## License
 
