@@ -11,7 +11,7 @@
   <img alt="No API keys" src="https://img.shields.io/badge/API%20keys-none-334155?style=flat-square">
 </p>
 
-**Local Google Maps lead extraction, operated by Claude.**
+**A free, local Google Maps scraper and Claude Code skill for lead generation.**
 Name a business type and a city. Get back a clean, outreach-ready CSV: name, phone, email, website,
 category, address, rating, and review count. Optional Instagram, Facebook, and LinkedIn enrichment.
 
@@ -109,6 +109,50 @@ your IP **temporarily rate-limited** (minutes to hours). Your Google account is 
 
 For large requests, Claude flags the risk and suggests proxies, then proceeds. It refuses only clearly
 abusive use.
+
+---
+
+## How it compares
+
+| | This kit | Asking a chat AI | Paid cloud scrapers | Copying by hand |
+|---|---|---|---|---|
+| Cost | Free (MIT) | Free | Per-result credits or subscription | Free |
+| API key or account | None | Account | Required | None |
+| Where data goes | Stays on your machine | Provider's servers | Provider's servers | Your machine |
+| Rows per query | Dozens to hundreds | Close to zero | Dozens to thousands | A handful |
+| Emails and socials | Built in | No | Often an add-on | Manual |
+| Output | Clean CSV, 8 lead fields | Chat text | CSV or JSON | Spreadsheet |
+
+---
+
+## FAQ
+
+**Is this Google Maps scraper free?**
+Yes. The kit is MIT licensed and the engine it runs is open source. There are no credits, subscriptions,
+or API keys. You only need Docker on your own machine.
+
+**Do I need a Google Maps API key or Google Places API?**
+No. The kit drives a headless browser against Google Maps directly, so there is no API quota or billing.
+
+**Do I need Claude Code to use it?**
+No. Claude Code makes it hands-free through a skill and slash commands, but `scripts/scrape.py` and
+`scripts/scrape.sh` run on their own from any terminal.
+
+**What data do I get for each business?**
+Name, phone, email, website, category, address, rating, and review count by default. Add `--socials`
+for Instagram, Facebook, and LinkedIn, or `--full` for all ~34 raw fields.
+
+**How many leads can I scrape?**
+Dozens to hundreds per query, depending on the area and `depth`. For large or repeated runs, add
+proxies (see [Responsible use](#responsible-use)).
+
+**Does it work on Windows, Linux, and Apple Silicon Macs?**
+Yes. Anywhere Docker runs. On Windows, use `scripts/scrape.py`, or run `scrape.sh` under WSL2 or Git Bash.
+[SETUP.md](SETUP.md) covers the Apple Silicon note.
+
+**Is scraping Google Maps legal?**
+It is against Google's Terms of Service, and phones and emails are personal data. Read
+[Responsible use](#responsible-use) and follow GDPR, CCPA, and CAN-SPAM. This is not legal advice.
 
 ---
 
