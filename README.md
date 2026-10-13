@@ -1,61 +1,53 @@
 # Google Maps Scraper Kit
 
 <p align="center">
-  <img src="assets/banner.svg" alt="Google Maps Scraper Kit — local Google Maps lead extraction, operated by Claude" width="100%">
+  <img src="assets/banner.svg" alt="Google Maps Scraper Kit: free local Google Maps scraper for lead generation, driven by Claude Code" width="100%">
 </p>
 
 <p align="center">
+  <a href="https://github.com/Mahanaicoach/google-maps-scraper-kit/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/Mahanaicoach/google-maps-scraper-kit?style=flat-square&color=f59e0b"></a>
+  <a href="https://github.com/Mahanaicoach/google-maps-scraper-kit/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/Mahanaicoach/google-maps-scraper-kit?style=flat-square&color=0b1220"></a>
+  <a href="https://github.com/Mahanaicoach/google-maps-scraper-kit/commits/master"><img alt="Last commit" src="https://img.shields.io/github/last-commit/Mahanaicoach/google-maps-scraper-kit?style=flat-square&color=334155"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0b1220?style=flat-square"></a>
-  <img alt="Runs locally" src="https://img.shields.io/badge/runs-100%25%20local-059669?style=flat-square">
-  <img alt="Claude Code" src="https://img.shields.io/badge/Claude%20Code-skill%20%2B%20commands-7c3aed?style=flat-square">
+  <img alt="Runs 100% locally" src="https://img.shields.io/badge/runs-100%25%20local-059669?style=flat-square">
   <img alt="No API keys" src="https://img.shields.io/badge/API%20keys-none-334155?style=flat-square">
 </p>
 
-**A free, local Google Maps scraper and Claude Code skill for lead generation.**
-Name a business type and a city. Get back a clean, outreach-ready CSV: name, phone, email, website,
-category, address, rating, and review count. Optional Instagram, Facebook, and LinkedIn enrichment.
+**A free, open-source Google Maps scraper for lead generation that runs on your own machine.**
+Name a business type and a city. Get back an outreach-ready CSV with name, phone, email, website,
+category, address, rating and review count. Add `--socials` for Instagram, Facebook and LinkedIn.
 
-Everything runs on your machine. No SaaS, no credits, no API keys.
+No Google Maps API key, no SaaS credits, no data leaving your computer. One Docker command starts the
+engine. Then run it from the terminal, or let Claude Code, Codex or Cursor drive it for you in plain
+English.
 
----
-
-## Why it exists
-
-Ask a chat AI to "scrape Google Maps" and it hits a consent wall and JavaScript-rendered pages. Result:
-close to zero structured rows. This kit runs a real headless scraping engine locally and gives Claude
-a precise operating manual for it. Result: dozens to hundreds of verified listings per query.
-
-## Capabilities
-
-| | |
+| Goal | Start here |
 |---|---|
-| **Lead-ready output** | The engine captures ~34 raw fields. The kit keeps the 8 you contact and qualify with, and writes a CSV. `--full` keeps everything. |
-| **Email extraction** | On by default. Pulls contact emails from each business website. |
-| **Social enrichment** | `--socials` finds Instagram, Facebook, and LinkedIn profiles. Runs in code (HTTP + regex), zero AI tokens. |
-| **Auto-geocoding** | Type a city name. Coordinates are resolved for you. |
-| **Batch jobs** | Many keywords, one job, one CSV. |
-| **Claude-native** | A skill plus four slash commands. Claude handles create, poll, download, clean, and present. |
-| **Safe defaults** | API bound to `127.0.0.1`, secrets git-ignored, rate-limit and data-law guardrails built into the skill. |
+| Get a lead list in the next 5 minutes | [Quick start](#quick-start) |
+| Let an AI coding agent run the scrape | [Use it with Claude Code or any agent](#use-it-with-claude-code-or-any-agent) |
+| Scrape many keywords or cities in one job | [Batch jobs](#batch-jobs-and-the-python-cli) |
+| Know what you get and where it stops | [What you get](#what-you-get) and [Honest limits](#honest-limits) |
+| Compare it with Apify, Outscraper and chat AIs | [How it compares](#how-it-compares) |
 
 ---
 
 ## Quick start
 
-Requires [Docker Desktop](https://www.docker.com/products/docker-desktop). Python 3 is optional (standard library only).
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop). Python 3 is optional and
+uses the standard library only.
 
 ```bash
 git clone https://github.com/Mahanaicoach/google-maps-scraper-kit.git
 cd google-maps-scraper-kit
 docker compose up -d
-```
-
-```bash
 ./scripts/scrape.sh "coffee shops in Austin TX" 30.2672 -97.7431 5
 ```
 
-Or open the folder in Claude Code and say:
+No coordinates handy? Let the Python CLI geocode the city:
 
-> Scrape gyms in Miami and give me phones and websites.
+```bash
+python3 scripts/scrape.py "dentists in Denver CO" --city "Denver, CO" --depth 5 --socials
+```
 
 ### Example output
 
@@ -66,29 +58,149 @@ Or open the folder in Claude Code and say:
 | Example Roasters | +1 512-555-0101 | hello@example.com | example.com | Coffee shop | 100 Congress Ave, Austin, TX | 4.7 | 812 |
 | Sample Espresso Bar | +1 512-555-0102 | info@example.org | example.org | Cafe | 200 S Lamar Blvd, Austin, TX | 4.5 | 356 |
 
-Add `--socials` for `instagram`, `facebook` and `linkedin` columns, or `--full` for all ~34 raw fields.
+`--socials` adds `instagram`, `facebook` and `linkedin` columns. `--full` keeps all ~34 raw fields,
+including opening hours, coordinates, price range and reviews.
 
-Detailed setup: [SETUP.md](SETUP.md). Skill reference: [SKILL.md](.claude/skills/google-maps-scraper/SKILL.md).
+Full walkthrough, platform notes and troubleshooting: [SETUP.md](SETUP.md).
 
 ---
 
-## Using it in Claude Code
+## Use it with Claude Code or any agent
 
-| Command | Action |
+The kit ships a [Claude Code skill](.claude/skills/google-maps-scraper/SKILL.md) that teaches the
+agent the exact job API, the required fields, polling, CSV cleanup and the rate-limit guardrails.
+It also works with Codex, Cursor and any other [Agent Skills](https://agentskills.io)-compatible tool.
+
+**Option A: open the folder in Claude Code.** The skill and four slash commands load automatically.
+
+```bash
+cd google-maps-scraper-kit
+claude
+```
+
+**Option B: install the skill into an agent you already use.**
+
+```bash
+npx skills add mahanaicoach/google-maps-scraper-kit
+```
+
+Then ask in plain language:
+
+> Scrape gyms in Miami and give me phones, emails and websites.
+
+The agent checks the engine is up and starts it if not, builds the job, polls in the background,
+downloads the CSV, keeps the 8 lead fields, and hands you a clean table plus the file.
+
+| Slash command (Claude Code) | Action |
 |---|---|
 | `/scrape <business> in <city, ST> [depth]` | Run one scrape, return a clean table and CSV |
 | `/scrape-batch <keywords-file> [--city "City, ST"]` | Run many queries as one job |
 | `/scrape-setup` | Start the engine and run a health check |
 | `/scrape-jobs [list \| delete <id>]` | List or delete jobs |
 
-Plain language works too. The skill triggers on requests like *"build me a lead list of dentists in
-Denver, CO"* or *"pull Google Maps listings for plumbers in Phoenix"*. It does not scrape social
-platforms directly.
+Plain requests trigger the skill too: *"build me a lead list of plumbers in Phoenix"*. The skill
+scrapes Google Maps business listings only. It does not scrape social platforms directly.
 
-### Without Claude
+---
+
+## What you get
+
+| | |
+|---|---|
+| **8 lead fields by default** | name, phone, email, website, category, address, rating, review count. The engine captures ~34 raw fields; `--full` keeps them all. |
+| **Email extraction, on by default** | Visits each business website and pulls published contact emails. |
+| **Social enrichment** | `--socials` finds Instagram, Facebook and LinkedIn profiles in code (HTTP + regex). Zero AI tokens. |
+| **Auto-geocoding** | Type a city name. Coordinates are resolved for you via OpenStreetMap. |
+| **Batch jobs** | Many keywords, one job, one CSV. |
+| **Proxy rotation** | Built into the engine for large or repeated runs. `socks5`, `socks5h`, `http`, `https`. |
+| **Agent-native** | A skill plus four slash commands. The agent handles create, poll, download, clean and present. |
+| **Safe defaults** | API bound to `127.0.0.1`, results git-ignored, rate-limit and data-law guardrails built into the skill. |
+
+### Batch jobs and the Python CLI
 
 `scripts/scrape.py` is a standalone, dependency-free Python CLI: single queries, batches, geocoding,
-socials, CSV output. `scripts/scrape.sh` covers the single-query case in bash.
+socials and CSV output. It works on macOS, Linux and Windows.
+
+```bash
+python3 scripts/scrape.py --keywords-file examples/queries.example.txt --city "Denver, CO"
+```
+
+One keyword per line. One job. One CSV.
+
+---
+
+## Honest limits
+
+- **About 120 listings per keyword.** Google Maps stops scrolling at roughly 120 results per search.
+  That is Google's cap, not the kit's. To go past it, batch more specific keywords ("vegan cafes",
+  "espresso bars") or neighbourhoods ("coffee shops in South Congress Austin") in one job.
+- **Emails only when a business publishes one.** The extractor reads the business website. Listings
+  with no site, or a site with no visible email, return an empty `emails` cell. Expect emails on a
+  fraction of rows, not all of them.
+- **Rate limits are real.** Heavy use without proxies can get your IP temporarily rate-limited by
+  Google for minutes to hours. Your Google account is not affected. See [Responsible use](#responsible-use).
+- **Apple Silicon runs the engine under amd64 emulation.** It works. It is slower than native.
+  [SETUP.md](SETUP.md) has the native fallback.
+
+---
+
+## How it compares
+
+| | This kit | Asking a chat AI | Apify, Outscraper and other cloud scrapers | Copying by hand |
+|---|---|---|---|---|
+| Cost | Free (MIT) | Free | Per-result credits or subscription | Free |
+| API key or account | None | Account | Required | None |
+| Where data goes | Stays on your machine | Provider's servers | Provider's servers | Your machine |
+| Rows per query | Up to ~120 per keyword, unlimited keywords | Close to zero | Up to ~120 per keyword, unlimited keywords | A handful |
+| Emails and socials | Built in | No | Often a paid add-on | Manual |
+| Output | Clean CSV, 8 lead fields | Chat text | CSV or JSON | Spreadsheet |
+| Driven by an AI agent | Yes, skill included | n/a | No | No |
+
+Ask a chat AI to "scrape Google Maps" and it hits a consent wall and JavaScript-rendered pages, so
+you get close to zero structured rows. This kit runs a real headless scraping engine locally and gives
+the agent a precise operating manual for it.
+
+---
+
+## FAQ
+
+**Is this Google Maps scraper free?**
+Yes. The kit is MIT licensed and the engine it runs is open source. There are no credits, subscriptions
+or API keys. You only need Docker on your own machine.
+
+**Do I need a Google Maps API key or the Google Places API?**
+No. The kit drives a headless browser against Google Maps directly, so there is no API quota or billing.
+
+**How is this different from gosom/google-maps-scraper?**
+[gosom/google-maps-scraper](https://github.com/gosom/google-maps-scraper) is the scraping engine, and
+this kit runs its official Docker image. The kit adds the lead-focused layer on top: a one-command
+local setup, a dependency-free Python CLI with geocoding and batching, email and social enrichment to a
+clean 8-column CSV, and a Claude Code skill with slash commands and safety guardrails. See
+[CREDITS.md](CREDITS.md).
+
+**Do I need Claude Code to use it?**
+No. Claude Code makes it hands-free through a skill and slash commands, but `scripts/scrape.py` and
+`scripts/scrape.sh` run on their own from any terminal.
+
+**Does it work with Codex, Cursor or other agents?**
+Yes. `npx skills add mahanaicoach/google-maps-scraper-kit` installs the skill into any Agent
+Skills-compatible tool. The `/scrape` slash commands are Claude Code only.
+
+**What data do I get for each business?**
+Name, phone, email, website, category, address, rating and review count by default. Add `--socials`
+for Instagram, Facebook and LinkedIn, or `--full` for all ~34 raw fields.
+
+**How many leads can I scrape?**
+Up to about 120 per keyword, and as many keywords as you like in one batch job. For large or
+repeated runs, add proxies (see [Responsible use](#responsible-use)).
+
+**Does it work on Windows, Linux and Apple Silicon Macs?**
+Yes. Anywhere Docker runs. On Windows, use `scripts/scrape.py`, or run `scrape.sh` under WSL2 or Git
+Bash. [SETUP.md](SETUP.md) covers the Apple Silicon note.
+
+**Is scraping Google Maps legal?**
+It is against Google's Terms of Service, and phones and emails are personal data. Read
+[Responsible use](#responsible-use) and follow GDPR, CCPA and CAN-SPAM. This is not legal advice.
 
 ---
 
@@ -103,60 +215,29 @@ your IP **temporarily rate-limited** (minutes to hours). Your Google account is 
   ```json
   "proxies": ["socks5://user:pass@host:port", "http://host2:port2"]
   ```
-  Supported: `socks5`, `socks5h`, `http`, `https`.
-- Scraping Maps is against Google's Terms of Service. Treat output as leads to verify, not a dataset to
-  resell. Phones and emails are personal data: follow GDPR, CCPA, and CAN-SPAM.
+- Treat output as leads to verify, not a dataset to resell. Phones and emails are personal data:
+  follow GDPR, CCPA and CAN-SPAM.
 
-For large requests, Claude flags the risk and suggests proxies, then proceeds. It refuses only clearly
-abusive use.
-
----
-
-## How it compares
-
-| | This kit | Asking a chat AI | Paid cloud scrapers | Copying by hand |
-|---|---|---|---|---|
-| Cost | Free (MIT) | Free | Per-result credits or subscription | Free |
-| API key or account | None | Account | Required | None |
-| Where data goes | Stays on your machine | Provider's servers | Provider's servers | Your machine |
-| Rows per query | Dozens to hundreds | Close to zero | Dozens to thousands | A handful |
-| Emails and socials | Built in | No | Often an add-on | Manual |
-| Output | Clean CSV, 8 lead fields | Chat text | CSV or JSON | Spreadsheet |
+For large requests, the agent flags the risk and suggests proxies, then proceeds. It refuses only
+clearly abusive use.
 
 ---
 
-## FAQ
+## Featured in
 
-**Is this Google Maps scraper free?**
-Yes. The kit is MIT licensed and the engine it runs is open source. There are no credits, subscriptions,
-or API keys. You only need Docker on your own machine.
+- [Best Google Maps Scrapers on GitHub in 2026 (Tested)](https://scrap.io/google-maps-scraper-github-open-source-guide) by Scrap.io
+- [skills.sh](https://skills.sh/mahanaicoach/google-maps-scraper-kit), the Agent Skills directory
 
-**Do I need a Google Maps API key or Google Places API?**
-No. The kit drives a headless browser against Google Maps directly, so there is no API quota or billing.
+## Star history
 
-**Do I need Claude Code to use it?**
-No. Claude Code makes it hands-free through a skill and slash commands, but `scripts/scrape.py` and
-`scripts/scrape.sh` run on their own from any terminal.
+If this kit saved you an afternoon of copy-pasting, a star helps the next person find it.
 
-**What data do I get for each business?**
-Name, phone, email, website, category, address, rating, and review count by default. Add `--socials`
-for Instagram, Facebook, and LinkedIn, or `--full` for all ~34 raw fields.
+<a href="https://www.star-history.com/#Mahanaicoach/google-maps-scraper-kit&Date">
+  <img src="https://api.star-history.com/svg?repos=Mahanaicoach/google-maps-scraper-kit&type=Date" alt="Star history chart for Mahanaicoach/google-maps-scraper-kit" width="600">
+</a>
 
-**How many leads can I scrape?**
-Dozens to hundreds per query, depending on the area and `depth`. For large or repeated runs, add
-proxies (see [Responsible use](#responsible-use)).
-
-**Does it work on Windows, Linux, and Apple Silicon Macs?**
-Yes. Anywhere Docker runs. On Windows, use `scripts/scrape.py`, or run `scrape.sh` under WSL2 or Git Bash.
-[SETUP.md](SETUP.md) covers the Apple Silicon note.
-
-**Is scraping Google Maps legal?**
-It is against Google's Terms of Service, and phones and emails are personal data. Read
-[Responsible use](#responsible-use) and follow GDPR, CCPA, and CAN-SPAM. This is not legal advice.
-
----
-
-## Project layout
+<details>
+<summary><strong>Project layout</strong></summary>
 
 ```
 google-maps-scraper-kit/
@@ -174,6 +255,8 @@ google-maps-scraper-kit/
 ├── CREDITS.md              scraping engine attribution and license
 └── SETUP.md                full setup guide
 ```
+
+</details>
 
 ## Support
 
