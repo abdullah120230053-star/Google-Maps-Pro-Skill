@@ -49,6 +49,12 @@ No coordinates handy? Let the Python CLI geocode the city:
 python3 scripts/scrape.py "dentists in Denver CO" --city "Denver, CO" --depth 5 --socials
 ```
 
+Need the whole city, not just the first 120? Add `--grid 3`:
+
+```bash
+python3 scripts/scrape.py "dentists in Denver CO" --city "Denver, CO" --grid 3
+```
+
 ### Example output
 
 `coffee_shops_austin.csv` (illustrative rows):
@@ -108,7 +114,8 @@ scrapes Google Maps business listings only. It does not scrape social platforms 
 | | |
 |---|---|
 | **8 lead fields by default** | name, phone, email, website, category, address, rating, review count. The engine captures ~34 raw fields; `--full` keeps them all. |
-| **Email extraction, on by default** | Visits each business website and pulls published contact emails. |
+| **Email extraction, on by default** | Visits each business website and pulls published contact emails. A second pass checks the contact and about pages of rows still missing one, then prints your found rate. |
+| **Beyond the 120 cap** | `--grid 3` splits the city into 3 x 3 map tiles, runs them one at a time and dedupes on `place_id`. |
 | **Social enrichment** | `--socials` finds Instagram, Facebook and LinkedIn profiles in code (HTTP + regex). Zero AI tokens. |
 | **Auto-geocoding** | Type a city name. Coordinates are resolved for you via OpenStreetMap. |
 | **Batch jobs** | Many keywords, one job, one CSV. |
@@ -131,12 +138,14 @@ One keyword per line. One job. One CSV.
 
 ## Honest limits
 
-- **About 120 listings per keyword.** Google Maps stops scrolling at roughly 120 results per search.
-  That is Google's cap, not the kit's. To go past it, batch more specific keywords ("vegan cafes",
-  "espresso bars") or neighbourhoods ("coffee shops in South Congress Austin") in one job.
-- **Emails only when a business publishes one.** The extractor reads the business website. Listings
-  with no site, or a site with no visible email, return an empty `emails` cell. Expect emails on a
-  fraction of rows, not all of them.
+- **About 120 listings per search.** Google Maps stops scrolling at roughly 120 results per search.
+  That is Google's cap, not the kit's. `--grid` is the fix: it splits the city into N x N map tiles,
+  runs one search per tile in a single batch, and dedupes the results on `place_id`. Tiles run one at a
+  time, so a grid is slower and more likely to trip rate limits than a single search.
+- **Emails only when a business publishes one.** The extractor reads the business website, then a
+  second pass checks its contact and about pages. Listings with no site, or a site with no visible
+  email, return an empty `emails` cell. Instagram bios are not read. Expect emails on a fraction of
+  rows, not all of them.
 - **Rate limits are real.** Heavy use without proxies can get your IP temporarily rate-limited by
   Google for minutes to hours. Your Google account is not affected. See [Responsible use](#responsible-use).
 - **Apple Silicon runs the engine under amd64 emulation.** It works. It is slower than native.
@@ -151,7 +160,7 @@ One keyword per line. One job. One CSV.
 | Cost | Free (MIT) | Free | Per-result credits or subscription | Free |
 | API key or account | None | Account | Required | None |
 | Where data goes | Stays on your machine | Provider's servers | Provider's servers | Your machine |
-| Rows per query | Up to ~120 per keyword, unlimited keywords | Close to zero | Up to ~120 per keyword, unlimited keywords | A handful |
+| Rows per query | Whole city with --grid, deduped | Close to zero | Up to ~120 per keyword, unlimited keywords | A handful |
 | Emails and socials | Built in | No | Often a paid add-on | Manual |
 | Output | Clean CSV, 8 lead fields | Chat text | CSV or JSON | Spreadsheet |
 | Driven by an AI agent | Yes, skill included | n/a | No | No |
@@ -191,8 +200,9 @@ Name, phone, email, website, category, address, rating and review count by defau
 for Instagram, Facebook and LinkedIn, or `--full` for all ~34 raw fields.
 
 **How many leads can I scrape?**
-Up to about 120 per keyword, and as many keywords as you like in one batch job. For large or
-repeated runs, add proxies (see [Responsible use](#responsible-use)).
+Up to about 120 per search. Add `--grid 3` to split the city into 9 map tiles and get past that cap,
+with duplicates removed. Batch as many keywords as you like in one job. For large or repeated runs,
+add proxies (see [Responsible use](#responsible-use)).
 
 **Does it work on Windows, Linux and Apple Silicon Macs?**
 Yes. Anywhere Docker runs. On Windows, use `scripts/scrape.py`, or run `scrape.sh` under WSL2 or Git

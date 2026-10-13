@@ -100,6 +100,12 @@ python3 scripts/scrape.py "cafes in Austin TX" --city "Austin, TX" --depth 5
 python3 scripts/scrape.py --keywords-file examples/queries.example.txt --city "Denver, CO"
 ```
 
+**Go past Google's ~120 results per search** by splitting the city into a 3 x 3 grid of map tiles
+(9 jobs, run one at a time, duplicates removed):
+```bash
+python3 scripts/scrape.py "plumbers in Phoenix AZ" --city "Phoenix, AZ" --grid 3
+```
+
 ---
 
 ## 4. Use it with Claude (the autopilot way) 🤖

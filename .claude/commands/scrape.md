@@ -16,6 +16,8 @@ Use the `google-maps-scraper` skill. Execute:
 5. **Poll to completion in the BACKGROUND** (the Bash tool blocks foreground `sleep` — use `run_in_background: true` and read the output file when notified). Then download the CSV.
 6. **Save a CSV file** (the default — `scripts/scrape.py` writes `results-<id>.csv`; if you use the raw API, save the parsed lead fields to a `.csv` yourself). Then **present ONLY money-useful lead fields** in a clean markdown table: `name (title), phone, emails, website, category, address, review_rating, review_count` (+ `instagram, facebook, linkedin` if socials were requested). **Drop everything else** — especially `latitude`/`longitude`, IDs, hours, images, review blobs. Do NOT dump the full 34-column CSV into chat; show a few sample rows and tell the user the CSV path. (Include dropped fields only if the user explicitly asks.)
 
+**All / every / entire city:** add `--grid 3` (3 x 3 map tiles, one job at a time, deduped) to get past Google's ~120 results per search. Warn that it is slower and more block-prone, then proceed.
+
 **Emails:** on by default in this kit — the scraper visits each business website to find them, which is a bit slower. Some businesses simply don't publish an email, so coverage is partial. For a deliberately fast run with no emails, pass `--no-email`.
 
 **Socials:** when the user says yes, `scripts/scrape.py … --socials` pulls Instagram/Facebook/LinkedIn. Extraction is **0 LLM tokens** (runs in code); it only adds ~40–50 tokens/business if you load rows into chat. **Never** WebFetch each website yourself to find socials — that costs thousands of tokens.

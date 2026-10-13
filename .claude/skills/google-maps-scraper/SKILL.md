@@ -113,6 +113,13 @@ said). If yes → **use the script:** `python3 scripts/scrape.py … --socials`.
   The API takes a `keywords` array, so put all terms in a single job rather than firing many jobs.
 Do the manual curl flow only for custom job bodies (e.g. setting `proxies`).
 
+**Whole-city runs:** when the user says all / every / entire city, or a run comes back with about 120
+rows (Google's per-search cap), use `python3 scripts/scrape.py "<keyword>" --city "<City, ST>" --grid 3`.
+It splits the city into 3 x 3 tiles and dedupes on `place_id`. Cells run one at a time, so it is slower
+and more block-prone: warn once, don't block.
+**Deep emails** are on by default whenever emails are on: rows with a website but no email get their
+contact/about pages checked, and the script prints the found rate. `--no-deep-emails` skips that pass.
+
 ## Other endpoints
 - `GET /api/v1/jobs` — list jobs. `DELETE /api/v1/jobs/{id}` — delete a job + free disk.
 - Browser UI + OpenAPI docs: `http://localhost:8080` and `http://localhost:8080/api/docs`.

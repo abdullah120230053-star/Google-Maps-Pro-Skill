@@ -10,12 +10,18 @@ Auto-geocode (no coordinates needed):
 Batch (one job, many keywords) from a file (one keyword per line):
     python3 scripts/scrape.py --keywords-file examples/queries.example.txt --city "Denver, CO"
 
+Whole city past Google's ~120 cap (3x3 map tiles, run one at a time, deduped on place_id):
+    python3 scripts/scrape.py "plumbers in Phoenix AZ" --city "Phoenix, AZ" --grid 3
+
+Skip the contact-page email pass (on by default whenever emails are on):
+    python3 scripts/scrape.py "gyms in Miami FL" --city "Miami, FL" --no-deep-emails
+
 Notes:
 - Required by the API: keywords, lat/lon (strings), max_time (SECONDS). This script fills them in.
 - Geocoding uses OpenStreetMap Nominatim (free, no key). Please be gentle: it allows ~1 request/sec
   and requires a descriptive User-Agent (set below). Don't loop it aggressively.
 """
-import argparse, csv, io, json, os, re, sys, time, urllib.request, urllib.parse, urllib.error
+import argparse, csv, functools, io, json, math, os, re, sys, time, urllib.request, urllib.parse, urllib.error
 from concurrent.futures import ThreadPoolExecutor
 
 ENV_KEYS = ("SCRAPER_BASE_URL", "SCRAPER_PORT", "SCRAPER_API_KEY")
@@ -41,7 +47,7 @@ KEY = os.environ.get("SCRAPER_API_KEY", "")
 # Money-useful LEAD fields only — what you actually use to contact/qualify a lead.
 # Everything else (geo coordinates, IDs, hours, images, reviews blobs…) is dropped by default.
 LEAD = ["title", "phone", "emails", "website", "category", "address", "review_rating", "review_count"]
-UA = "google-maps-scraper-kit/1.0 (https://github.com/Mahanaicoach/google-maps-scraper-kit)"
+UA = "google-maps-scraper-kit/1.1 (https://github.com/Mahanaicoach/google-maps-scraper-kit)"
 
 
 def req(method, path, body=None):
@@ -54,8 +60,9 @@ def req(method, path, body=None):
         return resp.status, resp.read()
 
 
-def geocode(place):
-    """City/place name -> ('lat','lon') strings via Nominatim, or None."""
+def geocode(place, with_bbox=False):
+    """City/place name -> ('lat','lon') strings via Nominatim, or None.
+    with_bbox=True returns ('lat','lon', [south, north, west, east]) instead."""
     q = urllib.parse.urlencode({"format": "json", "limit": 1, "q": place})
     url = f"https://nominatim.openstreetmap.org/search?{q}"
     r = urllib.request.Request(url, headers={"User-Agent": UA})
@@ -64,10 +71,85 @@ def geocode(place):
             hits = json.loads(resp.read())
         time.sleep(1)  # respect Nominatim's ~1 req/sec policy
         if hits:
-            return str(hits[0]["lat"]), str(hits[0]["lon"])
+            ll = (str(hits[0]["lat"]), str(hits[0]["lon"]))
+            return ll + (hits[0].get("boundingbox"),) if with_bbox else ll
     except Exception as e:
         print(f"  (geocoding failed: {e})", file=sys.stderr)
     return None
+
+
+def grid_cells(bbox, n):
+    """Split a Nominatim bbox [south, north, west, east] into n x n cells -> [{lat, lon, radius, zoom}].
+    radius (m) = 1.15 x half the cell diagonal (equirectangular), at least 1000.
+    zoom = the Maps zoom whose ~1000px viewport is about as wide as the cell (11..17), so each
+    search is launched looking at its own tile instead of a city-wide or block-wide view."""
+    s, nn, w, e = (float(x) for x in bbox)
+    dlat, dlon = (nn - s) / n, (e - w) / n
+    m_per_deg = 6371000 * math.pi / 180
+    cells = []
+    for i in range(n):
+        for j in range(n):
+            lat, lon = s + (i + 0.5) * dlat, w + (j + 0.5) * dlon
+            cos = math.cos(math.radians(lat))
+            width = max(1.0, dlon * m_per_deg * cos)
+            diag = math.hypot(dlat * m_per_deg, width)
+            zoom = round(math.log2(156543.03 * cos * 1000 / width))  # 156543 m/px at zoom 0
+            cells.append({"lat": f"{lat:.6f}", "lon": f"{lon:.6f}",
+                          "radius": max(1000, math.ceil(1.15 * diag / 2)),
+                          "zoom": min(17, max(11, zoom))})
+    return cells
+
+
+def in_bbox(row, bbox, margin=0.10):
+    """True if the row's latitude/longitude sit inside bbox [south, north, west, east] grown by
+    `margin` of its size on each side. Rows with no usable coordinates are kept (True)."""
+    try:
+        lat, lon = float(row.get("latitude")), float(row.get("longitude"))
+    except (TypeError, ValueError):
+        return True
+    s, n, w, e = (float(x) for x in bbox)
+    my, mx = (n - s) * margin, (e - w) * margin
+    return s - my <= lat <= n + my and w - mx <= lon <= e + mx
+
+
+def dedupe(rows):
+    """Keep the first row per place_id, else cid, else link, else title+address."""
+    seen, out = set(), []
+    for r in rows:
+        key = next((f"{k}:{r[k]}" for k in ("place_id", "cid", "link") if r.get(k)),
+                   f"ta:{r.get('title', '')}|{r.get('address', '')}")
+        if key not in seen:
+            seen.add(key); out.append(r)
+    return out
+
+
+def run_job(body):
+    """Create one engine job, poll it, download it -> (job_id, raw CSV rows). Raises RuntimeError."""
+    try:
+        _, raw = req("POST", "/api/v1/jobs", body)
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"✗ Create failed: HTTP {e.code} — {e.read().decode()[:200]}")
+    job_id = json.loads(raw).get("id")
+    if not job_id:
+        raise RuntimeError("✗ No job id returned.")
+    print(f"  job id: {job_id}")
+
+    print("▶ Polling…")
+    status = None
+    for i in range(120):
+        _, raw = req("GET", f"/api/v1/jobs/{job_id}")
+        status = json.loads(raw).get("Status")
+        print(f"\r  status: {str(status):<10} (attempt {i + 1})", end="", flush=True)
+        if status == "ok":
+            print(); break
+        if status == "failed":
+            raise RuntimeError("\n✗ Job failed. If this keeps happening you may be rate-limited — wait or add proxies.")
+        time.sleep(8)
+    else:
+        raise RuntimeError("\n✗ Timed out.")
+
+    _, raw = req("GET", f"/api/v1/jobs/{job_id}/download")
+    return job_id, list(csv.DictReader(io.StringIO(raw.decode("utf-8", "replace"))))
 
 
 def collect_keywords(a):
@@ -112,6 +194,11 @@ def _fetch_html(url, timeout=10):
     except Exception:
         return ""
 
+@functools.lru_cache(maxsize=512)  # ponytail: homepages only; evicted pages just refetch
+def _fetch_cached(url):
+    """Homepage fetch shared by the deep email pass and --socials (one fetch per site)."""
+    return _fetch_html(url, timeout=8)
+
 def _find_socials(html):
     out = {"instagram": "", "facebook": "", "linkedin": ""}
     for plat, rx in SOCIAL_RE.items():
@@ -132,11 +219,76 @@ def enrich_socials(results, workers=8):
     todo = [r for r in results if r.get("website")]
     done = 0
     def work(r):
-        r.update(_find_socials(_fetch_html(r["website"])))
+        r.update(_find_socials(_fetch_cached(r["website"])))
     with ThreadPoolExecutor(max_workers=workers) as ex:
         for _ in ex.map(work, todo):
             done += 1
             print(f"\r  socials: {done}/{len(todo)} sites checked", end="", flush=True)
+    print()
+
+
+# ── Deep email pass: contact/about pages for rows the engine left without an email ──
+EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+MAILTO_RE = re.compile(r"mailto:([^\"'>\s?]+)", re.I)
+HREF_RE = re.compile(r"<a\s[^>]*?href\s*=\s*[\"']([^\"']+)[\"'][^>]*>(.*?)</a>", re.I | re.S)
+_JUNK_EXT = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".css", ".js")
+_JUNK_DOMAIN = ("example", "sentry", "wixpress", "wix.com", "godaddy", "squarespace", "wordpress",
+                "domain.com", "email.com", "yourdomain", "schema.org", "w3.org", "sentry.io")
+_JUNK_LOCAL = {"name", "email", "user", "you", "someone"}
+
+def _host(url):
+    if not url.startswith(("http://", "https://")):
+        url = "http://" + url
+    h = (urllib.parse.urlparse(url).hostname or "").lower()
+    return h[4:] if h.startswith("www.") else h
+
+def extract_emails(html, site_host):
+    """Emails from mailto: links and plain text, junk dropped, site-domain first, max 3."""
+    site = _host(site_host or "")
+    found = []
+    for e in MAILTO_RE.findall(html or "") + EMAIL_RE.findall(html or ""):
+        e = urllib.parse.unquote(e).strip().lower()
+        local, _, dom = e.rpartition("@")
+        if (not EMAIL_RE.fullmatch(e) or e.endswith(_JUNK_EXT) or local in _JUNK_LOCAL
+                or any(j in dom for j in _JUNK_DOMAIN) or e in found):
+            continue
+        found.append(e)
+    on_site = lambda e: site and (e.endswith("@" + site) or e.endswith("." + site))
+    return sorted(found, key=lambda e: not on_site(e))[:3]
+
+def contact_links(html, base_url):
+    """Up to 3 same-site contact/about URLs: discovered links first, then fixed fallbacks."""
+    if not base_url.startswith(("http://", "https://")):
+        base_url = "http://" + base_url
+    host, out = _host(base_url), []
+    for href, text in HREF_RE.findall(html or ""):
+        if not re.search(r"contact|about", href + " " + text, re.I):
+            continue
+        url = urllib.parse.urldefrag(urllib.parse.urljoin(base_url, href.strip()))[0]
+        if url.startswith(("http://", "https://")) and _host(url) == host and url not in out:
+            out.append(url)
+    for path in ("/contact", "/contact-us", "/about", "/about-us"):
+        url = urllib.parse.urljoin(base_url, path)
+        if len(out) < 3 and url not in out:
+            out.append(url)
+    return out[:3]
+
+def enrich_emails(results, workers=8):
+    """Fill empty `emails` from the homepage, then up to 3 contact/about pages. Zero LLM tokens."""
+    todo = [r for r in results if r.get("website") and not r.get("emails")]
+    done = 0
+    def work(r):
+        site = r["website"]
+        home = _fetch_cached(site)
+        found = extract_emails(home, site)
+        if home and not found:
+            pages = "".join(_fetch_html(u, timeout=8) for u in contact_links(home, site))
+            found = extract_emails(pages, site)
+        r["emails"] = ", ".join(found)
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for _ in ex.map(work, todo):
+            done += 1
+            print(f"\r  emails: {done}/{len(todo)} sites checked", end="", flush=True)
     print()
 
 
@@ -154,6 +306,11 @@ def main():
     ap.add_argument("--email", dest="email", action="store_true", default=True, help=argparse.SUPPRESS)
     ap.add_argument("--no-email", dest="email", action="store_false",
                     help="skip email extraction for a faster run (emails are on by default)")
+    ap.add_argument("--no-deep-emails", dest="deep_emails", action="store_false",
+                    help="skip the second email pass over contact/about pages (on whenever emails are on)")
+    ap.add_argument("--grid", type=int, metavar="N",
+                    help="split the --city area into N x N map tiles, one job each, deduped "
+                         "(breaks Google's ~120 per search cap; max 10)")
     ap.add_argument("--max-time", type=int, default=600, help="job time limit in SECONDS")
     ap.add_argument("--out", default=None, help="output file path (default: results-<id>.csv). "
                     "The extension picks the format: .csv (default) or .json")
@@ -168,9 +325,24 @@ def main():
     if not keywords:
         sys.exit("✗ No keywords. Pass a keyword, --keyword, or --keywords-file.")
 
+    if a.grid is not None:
+        if not a.city:
+            sys.exit("✗ --grid needs --city: the city's bounding box is what gets split into tiles.")
+        if not 1 <= a.grid <= 10:
+            sys.exit("✗ --grid must be between 1 and 10 (10 x 10 = 100 jobs is the ceiling).")
+
     # Resolve coordinates: explicit lat/lon, else geocode --city, else geocode first keyword.
+    # --grid always geocodes --city, because it needs the city's bounding box.
     lat, lon = a.lat, a.lon
-    if not (lat and lon):
+    if a.grid:
+        print(f"▶ Geocoding \"{a.city}\"…")
+        geo = geocode(a.city, with_bbox=True)
+        if not geo or not geo[2]:
+            sys.exit("✗ Could not resolve a bounding box. Try a clearer --city.")
+        lat, lon, bbox = geo
+        cells = grid_cells(bbox, a.grid)
+        print(f"  → bbox S{bbox[0]} N{bbox[1]} W{bbox[2]} E{bbox[3]}, {len(cells)} tiles")
+    elif not (lat and lon):
         place = a.city or keywords[0]
         print(f"▶ Geocoding \"{place}\"…")
         coords = geocode(place)
@@ -184,8 +356,8 @@ def main():
               "Use --no-email for a fast run.")
 
     # --- WARN, don't block: flag high-volume jobs (proceed anyway) ---
-    if a.depth >= 15 or len(keywords) >= 10:
-        print("⚠️  Heads-up: this is a large job (high depth or many keywords).")
+    if a.depth >= 15 or len(keywords) >= 10 or (a.grid or 1) ** 2 >= 4:
+        print("⚠️  Heads-up: this is a large job (high depth, many keywords or a grid).")
         print("    Running it back-to-back without proxies can get your IP temporarily rate-limited by")
         print("    Google (clears in minutes–hours; returns empty/failed jobs meanwhile). For big or")
         print("    repeated runs, add proxies. Proceeding…\n")
@@ -199,34 +371,36 @@ def main():
     body = {"name": "scrape-py", "keywords": keywords, "lang": "en", "zoom": 15,
             "lat": str(lat), "lon": str(lon), "fast_mode": False, "radius": 10000,
             "depth": a.depth, "email": a.email, "max_time": a.max_time}
-    print(f"▶ Creating job: {len(keywords)} keyword(s) @ {lat},{lon} depth={a.depth} email={a.email}")
-    for k in keywords:
-        print(f"    • {k}")
-    try:
-        _, raw = req("POST", "/api/v1/jobs", body)
-    except urllib.error.HTTPError as e:
-        sys.exit(f"✗ Create failed: HTTP {e.code} — {e.read().decode()[:200]}")
-    job_id = json.loads(raw).get("id")
-    if not job_id:
-        sys.exit("✗ No job id returned.")
-    print(f"  job id: {job_id}")
-
-    print("▶ Polling…")
-    status = None
-    for i in range(120):
-        _, raw = req("GET", f"/api/v1/jobs/{job_id}")
-        status = json.loads(raw).get("Status")
-        print(f"\r  status: {str(status):<10} (attempt {i + 1})", end="", flush=True)
-        if status == "ok":
-            print(); break
-        if status == "failed":
-            sys.exit("\n✗ Job failed. If this keeps happening you may be rate-limited — wait or add proxies.")
-        time.sleep(8)
+    if not a.grid:
+        print(f"▶ Creating job: {len(keywords)} keyword(s) @ {lat},{lon} depth={a.depth} email={a.email}")
+        for k in keywords:
+            print(f"    • {k}")
+        try:
+            job_id, rows = run_job(body)
+        except RuntimeError as e:
+            sys.exit(str(e))
     else:
-        sys.exit("\n✗ Timed out.")
-
-    _, raw = req("GET", f"/api/v1/jobs/{job_id}/download")
-    rows = list(csv.DictReader(io.StringIO(raw.decode("utf-8", "replace"))))
+        print(f"▶ Grid {a.grid}x{a.grid}: {len(cells)} jobs, one at a time, "
+              f"{len(keywords)} keyword(s) depth={a.depth} email={a.email}")
+        for k in keywords:
+            print(f"    • {k}")
+        job_id, rows = None, []
+        for i, cell in enumerate(cells, 1):  # sequential on purpose: never parallel jobs against Google
+            print(f"▶ Cell {i}/{len(cells)} @ {cell['lat']},{cell['lon']} radius={cell['radius']}m")
+            try:
+                jid, cell_rows = run_job(dict(body, **cell))
+            except Exception as e:
+                print(f"\n  ⚠ cell {i}/{len(cells)} skipped: {str(e).strip()}")
+                continue
+            job_id = job_id or jid
+            rows = dedupe(rows + cell_rows)
+            print(f"  cell {i}/{len(cells)}: {len(cell_rows)} rows, {len(rows)} unique so far")
+        if job_id is None:
+            sys.exit("✗ Every grid cell failed. You may be rate-limited — wait or add proxies.")
+        # radius does not clip results in normal mode, so tiles leak outside the city
+        kept = [r for r in rows if in_bbox(r, bbox)]
+        print(f"  dropped {len(rows) - len(kept)} rows outside the city box")
+        rows = kept
     if a.full:
         fields = list(rows[0].keys()) if rows else LEAD
     elif a.fields:
@@ -235,6 +409,15 @@ def main():
         fields = LEAD
     results = [{k: r.get(k, "") for k in fields} for r in rows]
     print(f"✓ Done — {len(results)} businesses (fields: {', '.join(fields)}).")
+
+    if a.email and a.deep_emails and "emails" in fields:
+        print("▶ Deep email pass: checking contact/about pages for rows with no email…")
+        engine = sum(1 for r in results if r.get("emails"))
+        enrich_emails(results)
+        total = sum(1 for r in results if r.get("emails"))
+        n = len(results)
+        print(f"  emails: {engine}/{n} from the engine, +{total - engine} from contact pages "
+              f"= {total}/{n} ({round(100 * total / n) if n else 0}%)")
 
     if a.socials:
         print("▶ Finding socials (Instagram / Facebook / LinkedIn) on each website…")
