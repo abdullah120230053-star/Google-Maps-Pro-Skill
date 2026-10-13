@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-shot Google Maps scrape: create job -> poll -> download -> summarize.
+# Google Maps scrape for one keyword: creates the job, polls, downloads, and saves the 8 lead fields to a CSV.
 # Usage:   ./scripts/scrape.sh "<keyword>" <lat> <lon> [depth]
 # Example: ./scripts/scrape.sh "coffee shops in Austin TX" 30.2672 -97.7431 5
 set -euo pipefail
@@ -36,7 +36,7 @@ if ! curl -s -m 5 ${AUTH[@]+"${AUTH[@]}"} "$BASE/api/v1/jobs" >/dev/null 2>&1; t
 fi
 
 echo "▶ Creating job: \"$KEYWORD\" @ $LAT,$LON depth=$DEPTH (email extraction ON)"
-# email:true → the scraper visits each business website to pull emails (the key lead field). A bit slower.
+# email:true makes the engine visit each business website for emails (the key lead field). A little slower.
 BODY=$(printf '{"name":"scrape-cli","keywords":["%s"],"lang":"en","zoom":15,"lat":"%s","lon":"%s","fast_mode":false,"radius":10000,"depth":%s,"email":true,"max_time":600}' \
   "$KEYWORD" "$LAT" "$LON" "$DEPTH")
 ID=$(curl -s -X POST "$BASE/api/v1/jobs" ${AUTH[@]+"${AUTH[@]}"} -H "Content-Type: application/json" -d "$BODY" \
@@ -60,7 +60,7 @@ RAW="$(mktemp)"
 echo "▶ Downloading…"
 curl -s ${AUTH[@]+"${AUTH[@]}"} "$BASE/api/v1/jobs/$ID/download" -o "$RAW"
 
-# Trim the raw 34-column dump down to money-useful LEAD fields only (drops geo coords, IDs, hours, images…).
+# Trim the raw 34-column CSV to the 8 lead fields (drops coordinates, IDs, hours, images).
 if command -v python3 >/dev/null 2>&1; then
   python3 - "$RAW" "$OUT" <<'PY'
 import csv, sys

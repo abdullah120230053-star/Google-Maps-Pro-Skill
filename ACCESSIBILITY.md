@@ -1,11 +1,12 @@
 # Accessibility
 
-The Google Maps Scraper Kit aims to be usable by everyone, including people who use screen readers,
-keyboard-only input, or high-contrast and magnified displays.
+This page tells you how the Google Maps Scraper Kit works with assistive technology, and how to report a barrier.
+The kit aims to be usable by everyone, including people who use screen readers, keyboard-only input,
+or high-contrast and magnified displays.
 
 ## Commitment
 
-- Every step works from the keyboard. The kit is driven by text: Claude Code commands, a terminal,
+- Every step works from the keyboard. The kit is driven by text: agent commands, a terminal,
   and plain files. There is no mouse-only interface.
 - Output is plain text and CSV, which opens in any spreadsheet app or screen reader.
 - Documentation is Markdown with real headings, lists, and tables, so it reads in order with
@@ -28,7 +29,7 @@ keyboard-only input, or high-contrast and magnified displays.
 
 ## Report a barrier
 
-If something in the kit or its docs is hard to use with your setup, please
+If something in the kit or its docs is hard to use with your setup,
 [open an issue](https://github.com/Mahanaicoach/google-maps-scraper-kit/issues/new/choose).
 Describe what you were trying to do, the assistive technology you use, and where you got stuck.
 Accessibility reports are treated as bugs.

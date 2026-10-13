@@ -1,5 +1,5 @@
 {
-  "_comment": "Reference request body for POST /api/v1/jobs. Copy the 'job' object and edit. Required fields: keywords, lat, lon (strings), max_time (seconds).",
+  "_comment": "Reference request body for POST /api/v1/jobs. Copy the 'job' object and edit it. Required fields: keywords, lat and lon (strings), max_time (seconds). This sample sets email to false for a fast run; the kit's scripts send email true by default. Set proxies to an array of proxy URLs for large or repeated runs.",
   "job": {
     "name": "my scrape",
     "keywords": ["coffee shops in Austin TX"],

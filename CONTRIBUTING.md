@@ -1,13 +1,12 @@
 # Contributing
 
-Thanks for helping improve the Google Maps Scraper Kit.
+This page tells you how to get a bug fixed or a change merged into the Google Maps Scraper Kit.
 
-- **Bugs:** open an issue with the bug report template. Include the exact command and the full error.
-- **Pull requests:** keep them small and focused on one change. Test with a `depth 1` scrape before you
-  open the PR. Run `python3 scripts/test_scrape.py` before opening a PR.
-- **Scripts:** `scripts/scrape.py` uses the Python standard library only. Do not add pip dependencies.
-  `scripts/scrape.sh` must run on macOS's default bash 3.2.
-- **Scraping engine:** changes to the engine itself belong upstream in
+- **Report bugs** with the bug report issue template. Include the exact command and the full error.
+- **Keep pull requests small**, one change each. Test with a `depth 1` scrape and run
+  `python3 scripts/test_scrape.py` before you open the PR.
+- **Keep the scripts portable.** `scripts/scrape.py` uses the Python standard library only, so do not
+  add pip dependencies. `scripts/scrape.sh` must run on macOS's default bash 3.2.
+- **Send engine changes upstream.** Changes to the engine itself belong in
   [gosom/google-maps-scraper](https://github.com/gosom/google-maps-scraper).
-- **Data:** never commit scrape output. CSV and result files are git-ignored because they hold
-  personal data.
+- **Never commit scrape output.** CSV and result files are git-ignored because they hold personal data.

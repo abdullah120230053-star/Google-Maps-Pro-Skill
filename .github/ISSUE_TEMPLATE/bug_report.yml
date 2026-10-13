@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in the kit fails or behaves wrongly.
+description: Report something in the kit that fails or behaves wrongly.
 labels: [bug]
 body:
   - type: textarea
@@ -13,7 +13,7 @@ body:
     id: command
     attributes:
       label: Command or prompt
-      description: The exact command you ran (or what you asked Claude), and the full error output.
+      description: The exact command you ran, or what you asked the agent, and the full error output.
       render: shell
     validations:
       required: true
@@ -21,7 +21,7 @@ body:
     id: env
     attributes:
       label: Environment
-      description: OS, chip (Intel or Apple Silicon), Docker version, and the scraper image tag.
+      description: OS, chip (Intel or Apple Silicon), Docker version, and the engine image tag.
       placeholder: macOS 15, Apple Silicon, Docker 28.1, gosom/google-maps-scraper:v1.18.1
     validations:
       required: true

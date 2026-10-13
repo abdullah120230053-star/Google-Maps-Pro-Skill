@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""One-shot Google Maps scrape using only the Python standard library (no pip installs).
+"""Google Maps scraper CLI for lead generation: turns a keyword and a place into a CSV of the 8 lead fields.
+
+Uses only the Python standard library (no pip installs) and drives the kit's local engine.
 
 Single keyword:
     python3 scripts/scrape.py "gyms in Miami FL" 25.7617 -80.1918 --depth 5
@@ -10,16 +12,16 @@ Auto-geocode (no coordinates needed):
 Batch (one job, many keywords) from a file (one keyword per line):
     python3 scripts/scrape.py --keywords-file examples/queries.example.txt --city "Denver, CO"
 
-Whole city past Google's ~120 cap (3x3 map tiles, run one at a time, deduped on place_id):
+Whole city past Google's ~120 results per search (3 x 3 map tiles, run one at a time, deduped on place_id):
     python3 scripts/scrape.py "plumbers in Phoenix AZ" --city "Phoenix, AZ" --grid 3
 
-Skip the contact-page email pass (on by default whenever emails are on):
+Skip the deep email pass over contact and about pages (on by default whenever emails are on):
     python3 scripts/scrape.py "gyms in Miami FL" --city "Miami, FL" --no-deep-emails
 
 Notes:
 - Required by the API: keywords, lat/lon (strings), max_time (SECONDS). This script fills them in.
-- Geocoding uses OpenStreetMap Nominatim (free, no key). Please be gentle: it allows ~1 request/sec
-  and requires a descriptive User-Agent (set below). Don't loop it aggressively.
+- Geocoding uses OpenStreetMap Nominatim (free, no key). It allows ~1 request/sec and requires a
+  descriptive User-Agent (set below). Do not loop it aggressively.
 """
 import argparse, csv, functools, io, json, math, os, re, sys, time, urllib.request, urllib.parse, urllib.error
 from concurrent.futures import ThreadPoolExecutor
@@ -44,8 +46,8 @@ def load_env_file():
 load_env_file()
 BASE = os.environ.get("SCRAPER_BASE_URL") or f"http://localhost:{os.environ.get('SCRAPER_PORT') or '8080'}"
 KEY = os.environ.get("SCRAPER_API_KEY", "")
-# Money-useful LEAD fields only — what you actually use to contact/qualify a lead.
-# Everything else (geo coordinates, IDs, hours, images, reviews blobs…) is dropped by default.
+# The 8 lead fields: what you use to contact and qualify a lead.
+# Everything else (geo coordinates, IDs, hours, images, review blobs) is dropped by default.
 LEAD = ["title", "phone", "emails", "website", "category", "address", "review_rating", "review_count"]
 UA = "google-maps-scraper-kit/1.1 (https://github.com/Mahanaicoach/google-maps-scraper-kit)"
 

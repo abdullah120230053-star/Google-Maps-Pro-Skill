@@ -1,6 +1,8 @@
-# Credits & Attribution
+# Credits and attribution
 
-Google Maps Scraper Kit is designed and built by Mahan ([@Mahanaicoach](https://github.com/Mahanaicoach)).
+This page lists who built what in the Google Maps Scraper Kit, and the license that covers the engine.
+
+The kit is designed and built by Mahan ([@Mahanaicoach](https://github.com/Mahanaicoach)).
 One component, the Google Maps scraping engine, is open-source work by Georgios Komninos, credited below.
 
 ## Scraping engine
@@ -8,12 +10,12 @@ One component, the Google Maps scraping engine, is open-source work by Georgios 
 - **Project:** google-maps-scraper
 - **Author:** **Georgios Komninos** ([@gosom](https://github.com/gosom))
 - **Repository:** https://github.com/gosom/google-maps-scraper
-- **License:** MIT License — Copyright (c) 2023 Georgios Komninos
+- **License:** MIT License, Copyright (c) 2023 Georgios Komninos
 - **Docker image used:** `gosom/google-maps-scraper`
 
 The kit runs the engine's official Docker image, unmodified. Everything else in this repository is
 original to the kit: local deployment, lead-field cleaning, CSV output, auto-geocoding, batch jobs,
-social profile enrichment, and the Claude skill and commands.
+social profile enrichment, and the Claude Code skill and slash commands.
 
 ## Engine license (reproduced as required by MIT)
 
@@ -41,4 +43,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-Support the engine's author by starring the repository: https://github.com/gosom/google-maps-scraper
+To support the engine's author, star the repository: https://github.com/gosom/google-maps-scraper

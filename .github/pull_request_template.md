@@ -1,6 +1,6 @@
 ## What this changes
 
-<!-- One or two sentences. Keep the PR to one focused change. -->
+<!-- One or two sentences. Keep the PR to one change. -->
 
 ## Why
 
@@ -16,4 +16,5 @@
 - [ ] `scripts/scrape.py` still uses the Python standard library only (no pip dependencies)
 - [ ] `scripts/scrape.sh` still runs on macOS's default bash 3.2
 - [ ] No scrape output (CSV or result files) committed
+- [ ] `python3 scripts/test_scrape.py` passes
 - [ ] Docs updated (README, SETUP or the skill) if behavior changed

@@ -1,13 +1,13 @@
-# SETUP — Google Maps Scraper Kit
+# Setup guide: Google Maps Scraper Kit
 
-This guide sets up the whole system **on your computer** from scratch. It's written so that a person
-*or* Claude can follow it exactly. Total time: ~5 minutes (most of it is Docker pulling the image).
+This guide takes you from a fresh machine to a finished Google Maps lead list in about 5 minutes.
+Most of that time is Docker pulling the engine image. A person or an agent can follow it step by step.
 
 ---
 
-## 0. Prerequisites
+## 0. Install the prerequisites
 
-Install these first (one-time):
+Install these once:
 
 | Tool | Why | Get it |
 |---|---|---|
@@ -15,14 +15,14 @@ Install these first (one-time):
 | **Claude Code** *(optional but recommended)* | lets Claude drive the scraper for you | https://claude.com/claude-code |
 | **git** *(optional)* | only if you'll push this to GitHub | https://git-scm.com |
 
-Verify Docker is running:
+Check that Docker is running:
 ```bash
 docker --version        # should print a version
 docker ps               # should NOT error (means the daemon is up)
 ```
 
 > **Platform notes:**
-> - **Apple Silicon (M1/M2/M3):** the scraper image is `linux/amd64` and runs under emulation. If the
+> - **Apple Silicon (M1/M2/M3):** the engine image is `linux/amd64` and runs under emulation. If the
 >   container won't start, uncomment the `platform: linux/amd64` line in `docker-compose.yml`.
 > - **Windows:** use `scripts/scrape.py` (run with `py` or `python3`). The bash script `scrape.sh` needs
 >   **WSL2** or **Git Bash**.
@@ -31,116 +31,122 @@ docker ps               # should NOT error (means the daemon is up)
 
 ## 1. Get the kit
 
-If someone shared this folder with you, just `cd` into it:
+If someone shared the folder with you, `cd` into it:
 ```bash
 cd google-maps-scraper-kit
 ```
-(Or clone it from GitHub: `git clone https://github.com/Mahanaicoach/google-maps-scraper-kit.git && cd google-maps-scraper-kit`.)
+To clone it from GitHub instead: `git clone https://github.com/Mahanaicoach/google-maps-scraper-kit.git && cd google-maps-scraper-kit`.
 
-Create your local config (optional — defaults work as-is):
+Create your local config. This step is optional, because the defaults work as they are:
 ```bash
 cp .env.example .env
 ```
 
 ---
 
-## 2. Start the scraper
+## 2. Start the engine
 
 ```bash
 docker compose up -d
 ```
 
-First run pulls the `gosom/google-maps-scraper` image (~once, a few hundred MB). When it finishes:
+The first run pulls the `gosom/google-maps-scraper` image once, a few hundred MB. When it finishes, check it:
 
 ```bash
 docker ps | grep gmaps-scraper          # should show it "Up"
 curl http://localhost:8080/api/v1/jobs  # should print [] (empty list) or existing jobs
 ```
 
-You can also open the built-in UI and API docs in a browser:
+The engine also serves a web UI and API docs in the browser:
 - Web UI: **http://localhost:8080**
 - OpenAPI docs: **http://localhost:8080/api/docs**
 
-✅ If `curl` returns a JSON array, the system is live.
+If `curl` returns a JSON array, the engine is live.
 
-> ⚠️ **Now that it's running — read this once.** This hits Google Maps for real. Light use is fine, but
-> big jobs back-to-back, very high `depth`, many keywords, or scheduled runs **without proxies** can get
-> your **IP temporarily rate-limited/blocked by Google** (clears in minutes–hours; jobs return empty/failed
-> meanwhile). It does **not** ban your Google account. **Stay safe:** one job at a time, start at `depth 5`,
-> and add **proxies** for large or repeated runs. Scraping Maps is against Google's ToS — use responsibly
-> and follow data law (GDPR/CCPA) for any contact data. (Full guidance in README → *Rate limits, bans &
-> responsible use*.)
+> **Rate limits and the law.** The engine sends real requests to Google Maps. Light use is fine. Big
+> jobs back to back, high `depth`, many keywords or scheduled runs without proxies can get your IP
+> temporarily rate-limited by Google, for minutes to hours. Your Google account is not affected. Run
+> one job at a time, start at `depth 5`, and add proxies for large or repeated runs. Scraping Google
+> Maps is against Google's Terms of Service, and phones and emails are personal data, so follow GDPR,
+> CCPA and CAN-SPAM. Details: [Responsible use](README.md#responsible-use).
 
 ---
 
-## 3. Run your first scrape (without Claude)
+## 3. Run your first scrape from the terminal
 
-Use the included script. Arguments: `"<keyword>" <lat> <lon> [depth]`
+Use the bash script. Its arguments are `"<keyword>" <lat> <lon> [depth]`:
 
 ```bash
 ./scripts/scrape.sh "coffee shops in Austin TX" 30.2672 -97.7431 5
 ```
 
-or the Python version (no dependencies needed):
+Or use the Python CLI, which needs no dependencies:
 
 ```bash
 python3 scripts/scrape.py "gyms in Miami FL" 25.7617 -80.1918 --depth 5
 ```
 
-The script will **create the job → poll until done → download the CSV → print a summary** and save
-the full results to a file.
+Both scripts create the job, poll until it is done, download the CSV, keep the 8 lead fields and
+print a short preview. The full results go to a file.
 
-**Don't want to look up coordinates?** Let it geocode the city for you:
+**Skip the coordinates.** Pass `--city` and the Python CLI geocodes the city for you:
 ```bash
 python3 scripts/scrape.py "cafes in Austin TX" --city "Austin, TX" --depth 5
 ```
 
-**Scrape many queries at once** (one job, many keywords) from a file:
+**Run many keywords in one job** from a file, one keyword per line:
 ```bash
 python3 scripts/scrape.py --keywords-file examples/queries.example.txt --city "Denver, CO"
 ```
 
-**Go past Google's ~120 results per search** by splitting the city into a 3 x 3 grid of map tiles
-(9 jobs, run one at a time, duplicates removed):
+**Go past Google's ~120 results per search.** `--grid 3` splits the city into a 3 x 3 grid of map
+tiles. That is 9 jobs, run one at a time, with duplicates removed:
 ```bash
 python3 scripts/scrape.py "plumbers in Phoenix AZ" --city "Phoenix, AZ" --grid 3
 ```
 
 ---
 
-## 4. Use it with Claude (the autopilot way) 🤖
+## 4. Run it from Claude Code or another agent
 
-This is the point of the kit. Two parts make it work:
+The kit ships a Claude Code skill that teaches the agent the job API, the required fields, polling
+and the guardrails. It works with Claude Code, Codex, Cursor and any other
+[Agent Skills](https://agentskills.io)-compatible tool. Two files do the work:
 
-1. **[CLAUDE.md](CLAUDE.md)** — auto-loaded when you open this folder in Claude Code. It tells Claude
-   what this project is and the key rules.
-2. **[.claude/skills/google-maps-scraper/SKILL.md](.claude/skills/google-maps-scraper/SKILL.md)** — a
-   **skill** Claude loads on demand. It teaches Claude the exact API flow + best practices.
+1. **[CLAUDE.md](CLAUDE.md)** loads automatically when you open this folder in Claude Code. It tells
+   the agent what the kit is and its key rules.
+2. **[.claude/skills/google-maps-scraper/SKILL.md](.claude/skills/google-maps-scraper/SKILL.md)** is
+   the skill. The agent loads it on demand for the exact API flow and best practices.
 
-### How to connect it to Claude
-There's nothing to "connect" — the scraper is a local HTTP API at `http://localhost:8080`, and Claude
-calls it with its normal `curl`/Bash ability. Just:
+There is nothing to connect. The engine is a local HTTP API at `http://localhost:8080`, and the agent
+calls it with `curl` and its normal shell access.
+
+**Option A: open the folder in Claude Code.** The skill and four slash commands load automatically.
 
 ```bash
 cd google-maps-scraper-kit
 claude            # start Claude Code inside this folder
 ```
 
-Then talk to it naturally:
+**Option B: install the skill into an agent you already use.**
+
+```bash
+npx skills add mahanaicoach/google-maps-scraper-kit
+```
+
+Then ask in plain language:
 > "Make sure the scraper is running, then scrape **dentists in Denver CO**, depth 10, and give me a table of name, phone, website."
 
-Claude will: check the container is up (start it if not) → build the correct job (with the required
-`max_time`, `lat`, `lon`) → poll in the background → download → hand you clean rows. It follows the
-safety/best-practice rules in the skill automatically.
+The agent checks the engine is up and starts it if not. It then builds the job with the required
+`max_time`, `lat` and `lon`, polls in the background, downloads the CSV and hands you clean rows. It
+follows the skill's safety rules on every run.
 
-> ℹ️ **Advanced (optional):** prefer a Model Context Protocol server instead of curl? You can wrap the
-> API as an MCP tool, but it's unnecessary for a local single-user setup — the skill + local API is
-> simpler and just as capable.
+> **MCP is optional.** You can wrap the API as a Model Context Protocol server, but a local,
+> single-user setup does not need one. The skill and the local API do the same job with less setup.
 
----
+### Slash commands
 
-### Slash-command shortcuts
-Inside Claude Code you can also use these commands (type `/` to see them):
+Claude Code also offers these commands. Type `/` to see them:
 
 | Command | What it does |
 |---|---|
@@ -149,12 +155,13 @@ Inside Claude Code you can also use these commands (type `/` to see them):
 | `/scrape-setup` | Start the scraper + health check |
 | `/scrape-jobs [list \| delete <id>]` | List or delete jobs |
 
-…or just ask in plain English: *"scrape gyms in Miami with phone numbers."* (The scraper's commands and
-`localhost` calls are pre-approved in `.claude/settings.json`, so Claude won't prompt for each one.)
+Plain requests work too: *"scrape gyms in Miami with phone numbers."* The kit's local commands and
+`localhost` calls are pre-approved in `.claude/settings.json`, so Claude Code does not prompt for
+each one.
 
 ---
 
-## 5. Stop / clean up
+## 5. Stop and clean up
 
 ```bash
 docker compose stop      # pause (keeps data + image)
@@ -162,7 +169,7 @@ docker compose down      # stop + remove container (keeps named volumes/data)
 docker compose down -v   # ALSO delete scraped data volumes (full reset)
 ```
 
-Delete old jobs to free disk (results accumulate in the data volume):
+Results pile up in the data volume. Delete old jobs to free disk:
 ```bash
 curl -X DELETE http://localhost:8080/api/v1/jobs/<job-id>
 ```
@@ -187,7 +194,7 @@ curl -X DELETE http://localhost:8080/api/v1/jobs/<job-id>
 
 ### No Compose? Run the same container with `docker run`
 
-`docker-compose.yml` is thin — this is the exact equivalent, localhost binding and all:
+`docker-compose.yml` is thin. This command is the exact equivalent, including the localhost binding:
 
 ```bash
 docker run -d --name gmaps-scraper --restart unless-stopped \
@@ -200,22 +207,23 @@ Add `--platform linux/amd64` on Apple Silicon. Stop it with `docker stop gmaps-s
 
 ### Running without Docker (fallback)
 
-If Docker is unavailable — or the image's amd64 emulation is too slow on Apple Silicon — run the
-scraper natively. It's a single Go binary, and it serves the **same API on the same port**, so every
-script and slash command in this kit works unchanged.
+Use this when Docker is unavailable, or when amd64 emulation is too slow on Apple Silicon. The engine
+is a single Go binary. It serves the **same API on the same port**, so every script and slash command
+in the kit works unchanged.
 
 ```bash
 go install github.com/gosom/google-maps-scraper@v1.18.1
 google-maps-scraper -web -addr 127.0.0.1:8080 -data-folder ./gmapsdata
 ```
 
-> Keep `-addr 127.0.0.1:8080`. The binary defaults to `:8080` — **all interfaces** — and the scraper
-> has no authentication. In Docker the localhost binding comes from the port mapping; here it's on you.
+> Keep `-addr 127.0.0.1:8080`. The binary defaults to `:8080`, which means **all interfaces**, and the
+> engine has no authentication. In Docker the port mapping provides the localhost binding. Here you
+> provide it.
 
 **If the first job dies with `could not install driver: … 404`:** `playwright-go` fetches its driver
-from `playwright.azureedge.net`, which Microsoft retired; the replacement hosts currently answer `400`
-for driver zips (browser downloads still work). That driver is just the `playwright-core` npm package
-plus a `node` binary, so you can assemble it by hand — match the version the error names:
+from `playwright.azureedge.net`, which Microsoft retired. The replacement hosts currently answer `400`
+for driver zips, though browser downloads still work. The driver is the `playwright-core` npm package
+plus a `node` binary, so you can assemble it by hand. Match the version the error names:
 
 ```bash
 V=1.57.0                                   # whatever version the error asks for
@@ -225,16 +233,16 @@ mkdir -p "$D" && cp -R package "$D/package" && cp "$(command -v node)" "$D/node"
 "$D/node" "$D/package/cli.js" --version    # should print: Version <V>
 ```
 
-Restart the scraper; it finds the driver, downloads Chromium normally, and runs.
+Restart the engine. It finds the driver, downloads Chromium normally, and runs.
 
 ---
 
-## 7. Best practices & safety (summary)
+## 7. Best practices
 
-The full rules live in the skill, but the essentials:
-- **Always** send `max_time` (seconds) and `lat`/`lon` (strings).
-- Start with **low `depth`** (5) and **one job at a time**. Raise only when needed.
-- Turn on **email extraction** only when you need emails — it's much slower.
-- For big jobs, add **proxies** (the scraper has built-in rotation) to avoid IP blocks.
-- Scraped **phones/emails are personal data** — comply with GDPR/CCPA/CAN-SPAM, and respect Google's ToS.
-- Never commit result files (they're git-ignored for you).
+The skill holds the full rules. These are the essentials:
+- Always send `max_time` (seconds) and `lat`/`lon` (strings).
+- Start at `depth 5` and run one job at a time. Raise depth only when needed.
+- Keep email extraction on, the default, because emails are the key lead field. Use `--no-email` for a
+  faster run without them.
+- Add proxies for big jobs. The engine rotates them for you.
+- Never commit result files. They are git-ignored for you.
