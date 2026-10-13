@@ -13,6 +13,8 @@
   <img alt="No API keys" src="https://img.shields.io/badge/API%20keys-none-334155?style=flat-square">
 </p>
 
+<p align="center"><sub>Last verified working: 2026-10-14 with engine v1.18.1 on macOS Apple Silicon.</sub></p>
+
 **A free, open-source Google Maps scraper for lead generation that runs on your own machine.**
 Name a business type and a city. Get back an outreach-ready CSV with name, phone, email, website,
 category, address, rating and review count. Add `--socials` for Instagram, Facebook and LinkedIn.
@@ -28,6 +30,7 @@ English.
 | Scrape many keywords or cities in one job | [Batch jobs](#batch-jobs-and-the-python-cli) |
 | Know what you get and where it stops | [What you get](#what-you-get) and [Honest limits](#honest-limits) |
 | Compare it with Apify, Outscraper and chat AIs | [How it compares](#how-it-compares) |
+| Follow a worked recipe for dentists, roofers or restaurants | [Guides and recipes](docs/README.md) |
 
 ---
 
@@ -168,6 +171,18 @@ One keyword per line. One job. One CSV.
 Ask a chat AI to "scrape Google Maps" and it hits a consent wall and JavaScript-rendered pages, so
 you get close to zero structured rows. This kit runs a real headless scraping engine locally and gives
 the agent a precise operating manual for it.
+
+---
+
+## Guides and recipes
+
+One page per job, with the exact commands. Index: [docs/README.md](docs/README.md).
+
+- [Google Maps email scraper: how the kit finds business emails](docs/google-maps-email-scraper.md)
+- [Google Maps scraper in Python: every CLI flag](docs/google-maps-scraper-python.md)
+- [Google Maps scraper without an API key](docs/google-maps-scraper-no-api-key.md)
+- [Scrape Google Maps leads with Claude Code](docs/scrape-google-maps-leads-with-claude-code.md)
+- Recipes: [dentists](docs/recipes/dentist-leads.md), [roofing contractors](docs/recipes/roofing-contractor-leads.md), [restaurants](docs/recipes/restaurant-leads.md)
 
 ---
 
