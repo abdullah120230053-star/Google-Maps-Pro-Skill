@@ -59,8 +59,9 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported privately to the maintainer, [@Mahanaicoach](https://github.com/Mahanaicoach),
-through GitHub's [private reporting form](https://github.com/Mahanaicoach/google-maps-scraper-kit/security/advisories/new).
+reported privately to the maintainer, [@abdullah120230053-star](https://github.com/abdullah120230053-star),
+using the private reporting channel described in [SECURITY.md](SECURITY.md). If none is enabled,
+request a private contact method without posting personal or sensitive details publicly.
 All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the

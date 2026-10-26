@@ -1,64 +1,22 @@
-# Google Maps scraper in Python: the kit's dependency-free CLI
+# Google Maps Scraper PRO in Python
 
-`scripts/scrape.py` is a free Google Maps scraper Python CLI that turns a keyword and a place into a lead CSV, using only the standard library.
-It drives the engine running locally in Docker, so there is no API key, no pip install and no data leaving your machine.
+The Python 3.9+ CLI uses only the standard library. It runs single searches, keyword batches,
+multi-city bilingual campaigns, filters, lead scoring, contact/social enrichment, website checks,
+CSV/JSON/Excel exports and campaign reports.
 
-## Run it
+Start the Docker engine, then run:
 
-Start the engine, which is the gosom/google-maps-scraper official Docker image, then call the script:
-
-```bash
+```powershell
 docker compose up -d
-python3 scripts/scrape.py "gyms in Miami FL" 25.7617 -80.1918 --depth 5
-python3 scripts/scrape.py "cafes in Austin TX" --city "Austin, TX" --depth 5
-python3 scripts/scrape.py --keywords-file examples/queries.example.txt --city "Denver, CO"
+python scripts/scrape.py "dentists in {city}" --city "Cairo, Egypt" --city "Giza, Egypt" --min-reviews 30 --has-phone --website-check --out output/leads.xlsx
+python scripts/scrape.py --campaign examples/campaign.example.json --out output/campaign.xlsx
+python scripts/scrape.py --help
 ```
 
-On Windows, run the same commands with `py` or `python3`. Python is only the client. The engine always runs in Docker.
+On Windows use `python` or `py`; on macOS/Linux `python3` is common.
+Read **[the PRO guide](pro.md)** for all filters, profiles, campaign schemas and report definitions.
 
-## Every flag
-
-| Flag | What it does |
-|---|---|
-| `keyword` | The search, with the place baked in, e.g. `"coffee shops in Austin TX"`. |
-| `lat`, `lon` | Coordinates. Optional when you pass `--city`. |
-| `--city` | Geocodes a city name to coordinates via OpenStreetMap. |
-| `--depth` | How far to scroll each search. Default `5`. Higher is slower and more likely to be blocked. |
-| `--no-email` | Skips email extraction for a faster run. Emails are on by default. |
-| `--no-deep-emails` | Skips the deep email pass over contact and about pages. |
-| `--grid N` | Splits the `--city` area into N x N map tiles, one job each, deduped. Needs `--city`. Max 10. |
-| `--max-time` | Job time limit in seconds. Default `600`. |
-| `--out` | Output path. Default `results-<id>.csv`. A `.json` extension writes JSON. |
-| `--json` | Writes JSON instead of CSV. |
-| `--full` | Keeps all ~34 raw columns instead of the 8 lead fields. |
-| `--fields` | Comma-separated columns to keep, overriding the lead fields. |
-| `--socials` | Adds Instagram, Facebook and LinkedIn from each website. Slower. Zero AI tokens. |
-| `--keyword` | Adds an extra keyword to the same job. Repeatable. |
-| `--keywords-file` | Reads one keyword per line from a file. One job, one CSV. |
-
-The script creates the job, polls until it finishes, downloads the CSV and keeps the 8 lead fields. It prints a short preview and saves the full results to a file.
-
-## Example output
-
-Illustrative rows only:
-
-| title | phone | emails | website | category | review_rating |
-|---|---|---|---|---|---|
-| Example Fitness Club | +1 305-555-0101 | hello@example.com | example.com | Gym | 4.6 |
-| Sample Strength Studio | +1 305-555-0102 | info@example.org | example.org | Gym | 4.8 |
-| Demo Boxing Gym | +1 305-555-0103 |  | example.net | Boxing gym | 4.4 |
-
-## What to expect
-
-- Google Maps returns about 120 listings per search. Use `--grid 3` to cover a whole city past that cap.
-- Grid tiles run one at a time, so a grid is slower and more likely to trip rate limits than one search.
-- Emails appear only when a business publishes one on its website. Many rows will have an empty `emails` cell.
-- Heavy use without proxies can get your IP temporarily rate-limited by Google. Your Google account is not affected.
-- Geocoding uses the free OpenStreetMap Nominatim service, which allows about 1 request per second.
-- Scraping Google Maps is against Google's Terms of Service, so read [Responsible use](../README.md#responsible-use) first.
-
-## Related
-
-- [Google Maps email scraper](google-maps-email-scraper.md)
-- [Google Maps scraper without an API key](google-maps-scraper-no-api-key.md)
-- [Kit README](../README.md)
+Emails and social links are on by default; `--no-email` and `--no-socials` skip them.
+`--grid 3` splits each city into nine sequential jobs per language.
+`--fields` chooses exact output columns while qualification still uses complete enriched rows.
+Every run saves a JSON report next to its output. Partial completion exits 2 and preserves results.

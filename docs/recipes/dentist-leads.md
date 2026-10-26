@@ -26,7 +26,7 @@ That is 9 jobs, run one at a time. Results are deduped on `place_id`, and rows o
 
 ## Step 3: Add social profiles
 
-Add `--socials` for Instagram, Facebook and LinkedIn links found on each practice website:
+Social links are on by default. The explicit `--socials` flag below is still accepted; `--no-socials` skips discovery:
 
 ```bash
 python3 scripts/scrape.py "dentists in Denver CO" --city "Denver, CO" --grid 3 --socials
@@ -55,7 +55,7 @@ Illustrative rows only:
 - `website`: the site you will review before you reach out.
 - `category`: separates general dentists from orthodontists and other specialists.
 - `review_rating` and `review_count`: a quick read on how established the practice is.
-- `instagram`, `facebook`, `linkedin`: added by `--socials` when the site links them.
+- `instagram`, `facebook`, `linkedin`, `youtube`, `tiktok`, `x`, `whatsapp`: included when discovered, with source URLs. Use `--no-socials` to skip them.
 
 ## What to expect
 
@@ -63,7 +63,7 @@ Illustrative rows only:
 - A grid is slower than one search and more likely to trip rate limits. Run one job at a time.
 - Add proxies for large or repeated runs. Heavy use without them can get your IP temporarily rate-limited.
 - Socials appear only when the practice links them on its own site.
-- Phones and emails are personal data, so read [Responsible use](../../README.md#responsible-use) before outreach.
+- Phones and emails are personal data, so read [Responsible use](../../README.md#limits-and-responsible-use) before outreach.
 
 ## Related
 

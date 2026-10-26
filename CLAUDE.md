@@ -1,4 +1,4 @@
-# CLAUDE.md: Google Maps Scraper Kit
+# CLAUDE.md: Google Maps Scraper PRO
 
 You are working inside the **Google Maps Scraper Kit**. The kit runs a local Google Maps scraper for
 lead generation, and you drive it for the user.
@@ -12,6 +12,17 @@ business listings only**, not social media.
 **Load and follow the `google-maps-scraper` skill** (`.claude/skills/google-maps-scraper/SKILL.md`).
 It has the exact API flow, the required fields, and the best-practice and safety rules. Do not write
 the API calls from memory. Use the skill.
+
+## PRO workflow
+Use `python scripts/scrape.py` for single, batch, multi-city and bilingual campaigns. The CLI adds
+filters, explainable scoring, social profile links/sources, optional website checks, native Excel
+exports and JSON campaign reports. Read `docs/pro.md` and `--help` for the supported options.
+Emails and social discovery are on by default; do not ask an extra social-profiles question. Honor
+`--no-email` and `--no-socials` when requested. Multi-city keywords require `{city}` templates.
+Prefer `.xlsx` output when the user wants Excel; use the full rows for enrichment/filtering and
+project output columns only afterward. Check the JSON report: exit 2 can mean partial completion.
+Never describe discovered profile links as verified ownership or website request failures as
+proof of a permanently broken website. Python outputs and reports explicitly use UTF-8 for Arabic.
 
 ## Slash commands
 The kit ships four commands in `.claude/commands/` that map to the skill: `/scrape` (single query),
@@ -30,7 +41,7 @@ clearly abusive use (surveilling individuals, spam). The skill has the full guid
   `max_time` (in **seconds**, e.g. `300`), `lat` and `lon` (as **strings**), and `keywords` (array).
 - The create response is `{"id":"<uuid>"}` (lowercase `id`). Check status with `GET /api/v1/jobs/{id}`; its field is `"Status"`, and it becomes `"ok"` when done.
 - **Poll in the background.** The Bash tool blocks foreground `sleep`. Run the poll loop as a
-  background command (`run_in_background: true`) and read its output file when notified.
+  background/session tools provided by the current harness. The Python CLI polls jobs itself.
 - Before a big job (high depth, many keywords), tell the user the cost once: time and IP rate-limit risk. Then proceed.
 - Scraped emails and phones are **personal data**. Do not dump large CSVs into chat: summarize and save to disk.
 

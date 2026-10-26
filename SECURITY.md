@@ -13,9 +13,9 @@ Do not expose port 8080 to a network without an authenticating proxy in front of
 
 ## Where to report
 
-Use GitHub's private
-[security advisory form](https://github.com/Mahanaicoach/google-maps-scraper-kit/security/advisories/new).
-Do not open a public issue for security problems.
+Use this repository's [Security tab](https://github.com/abdullah120230053-star/Google-Maps-Pro-Skill/security)
+and private vulnerability reporting when enabled. If no private reporting channel is available, open
+an issue requesting a private contact method without disclosing vulnerability details, contacts or credentials.
 
 ## Out of scope
 

@@ -30,6 +30,6 @@ or high-contrast and magnified displays.
 ## Report a barrier
 
 If something in the kit or its docs is hard to use with your setup,
-[open an issue](https://github.com/Mahanaicoach/google-maps-scraper-kit/issues/new/choose).
+[open an issue](https://github.com/abdullah120230053-star/Google-Maps-Pro-Skill/issues/new/choose).
 Describe what you were trying to do, the assistive technology you use, and where you got stuck.
 Accessibility reports are treated as bugs.

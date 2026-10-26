@@ -1,0 +1,16 @@
+{
+  "weights": {
+    "phone": 20,
+    "email": 15,
+    "website": 0,
+    "missing_website": 35,
+    "socials": 5,
+    "rating": 5,
+    "reviews": 20,
+    "website_unreachable": 15,
+    "no_https": 5,
+    "no_contact_link": 5
+  },
+  "rating_min": 4,
+  "reviews_min": 30
+}

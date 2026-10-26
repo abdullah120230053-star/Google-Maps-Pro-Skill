@@ -30,7 +30,7 @@ python3 scripts/scrape.py "dentists in Denver CO" --city "Denver, CO" --no-deep-
 python3 scripts/scrape.py "dentists in Denver CO" --city "Denver, CO" --no-email
 ```
 
-The CSV lands in `results-<id>.csv` unless you pass `--out`.
+The CSV uses a timestamped `results-...csv` filename unless you pass `--out`; every run also saves a campaign report.
 
 ## Example output
 
@@ -47,11 +47,11 @@ The empty `emails` cell on the last row is normal. That site published no email 
 ## What to expect
 
 - Expect emails on a fraction of rows, not all of them. A business with no website, or a site with no visible email, returns an empty cell.
-- Instagram bios are not read. Add `--socials` to get Instagram, Facebook and LinkedIn profile links from each website instead.
+- Social profile links and their source URLs are included by default for Instagram, Facebook, LinkedIn, YouTube, TikTok, X and published WhatsApp links. Use `--no-socials` to skip discovery; Instagram bios are not scraped.
 - Email extraction visits every website, so a run with emails is slower than one with `--no-email`.
 - Google Maps returns about 120 listings per search. Add `--grid 3` to split the city into 9 map tiles and get past that cap, with duplicates removed.
 - Heavy use without proxies can get your IP temporarily rate-limited by Google for minutes to hours. Run one job at a time and add proxies for large or repeated runs.
-- Scraping Google Maps is against Google's Terms of Service and emails are personal data, so read [Responsible use](../README.md#responsible-use) before you send anything.
+- Scraping Google Maps is against Google's Terms of Service and emails are personal data, so read [Responsible use](../README.md#limits-and-responsible-use) before you send anything.
 
 ## Related
 

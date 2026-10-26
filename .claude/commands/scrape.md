@@ -1,25 +1,20 @@
 ---
-description: Scrape Google Maps business listings for one business type in one city and return the 8 lead fields as a table and CSV.
-argument-hint: <business type> in <city, ST> [depth]
+description: Run a filtered, scored Google Maps PRO lead search with social links and CSV/Excel output.
+argument-hint: <business type> in <city> [requirements]
 ---
-The user wants a Google Maps lead list. Query: **$ARGUMENTS**
+Request: **$ARGUMENTS**
 
-Use the `google-maps-scraper` skill and follow these steps:
+Load the `google-maps-scraper` skill and use `scripts/scrape.py`.
+Resolve the business type, city, language and qualification requirements. Read `docs/pro.md` when
+filters, scoring, website checks or exports need configuration. Emails and social profile links are
+on by default; do not ask an extra socials question. Honor explicit opt-outs.
 
-1. **Check the engine:** `curl -s http://localhost:8080/api/v1/jobs`. If it is down, run `docker compose up -d` from the kit root, wait ~10s, and retry.
-2. **Parse** the business type and city from the query. Look up the city's **latitude/longitude** (as strings).
-3. **Ask about social profiles before scraping, every time.** Ask the user ONE short question:
-   *"Want me to also grab their social profiles (Instagram / Facebook / LinkedIn)? Emails are already included by default. (yes / no)"*
-   Wait for the answer. **Skip the question only if** the user already said yes or no to socials in the request.
-   If **yes**, add `--socials` in step 4. If **no**, leave it off. Socials cost no LLM tokens and one extra HTTP fetch per site (see the skill).
-4. **Create the job with email extraction on** (`"email": true` in the body; emails are the most valuable lead field). Required fields: `keywords` (location baked into each term), `lat`/`lon` (strings), `max_time` (seconds, default `300`), `depth` (the number in the query, else `5`). Easiest path: `python3 scripts/scrape.py "<keyword>" --city "<City, ST>" --depth <n>` (emails are already on by default; append `--socials` if the user said yes in step 3).
-5. **Poll to completion in the background.** The Bash tool blocks foreground `sleep`, so use `run_in_background: true` and read the output file when notified. Then download the CSV.
-6. **Save a CSV file.** `scripts/scrape.py` writes `results-<id>.csv` by default. If you use the raw API, save the parsed lead fields to a `.csv` yourself. Then **present only the 8 lead fields** in a clean markdown table: `name (title), phone, emails, website, category, address, review_rating, review_count`, plus `instagram, facebook, linkedin` if socials were requested. **Drop everything else**, especially `latitude`/`longitude`, IDs, hours, images and review blobs. Never dump the full 34-column CSV into chat. Show a few sample rows and give the CSV path. Include dropped fields only if the user explicitly asks.
+Check/start the local engine. Run the CLI with the requested filters, score profile and output type.
+For multiple cities use a `{city}` keyword template; for full-city coverage add `--grid 3`.
+Use the current harness's background/session tools for long runs; the CLI handles polling.
+For large jobs, give one short time/rate-limit warning and proceed.
 
-**All, every or entire city:** add `--grid 3` (3 x 3 map tiles, one job at a time, deduped) to get past Google's ~120 results per search. Warn once that it is slower and more likely to trip rate limits, then proceed.
-
-**Emails:** on by default. The engine visits each business website to find them, which is a little slower. Some businesses publish no email, so coverage is partial. For a deliberately fast run without emails, pass `--no-email`.
-
-**Socials:** when the user says yes, `scripts/scrape.py … --socials` adds Instagram, Facebook and LinkedIn. Extraction costs **0 LLM tokens** because it runs in code. It adds ~40–50 tokens per business only if you load the rows into chat. **Never** WebFetch each website yourself to find socials; that costs thousands of tokens.
-
-**Warn, don't block:** if the request is high-volume (high `depth`, many keywords or repeated runs), print ONE short warning that heavy use can get the user's IP temporarily rate-limited by Google, and suggest proxies. Then **proceed with the scrape**. Do not gate or demand confirmation for a big job. Refuse outright only for clearly abusive use (surveilling individuals, spam, harassment). If the user will store or contact the data, remind them once that it is personal data and that scraping is against Google's Terms of Service.
+Deliver the saved file and its campaign report, with exported/collected counts, contact coverage,
+elapsed time and failed jobs. Exit 2 can indicate partial results: say so explicitly. Show only a few
+sample leads. Scores are rule-based priorities, social links are discovered rather than ownership-
+verified, and website checks are observations requiring review.

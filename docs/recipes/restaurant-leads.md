@@ -64,7 +64,7 @@ Illustrative rows only:
 - Not every listing has a price range or opening hours, so those cells can be empty too.
 - A grid or many keywords is a large job. Run one job at a time and add proxies for repeated runs.
 - Heavy use without proxies can get your IP temporarily rate-limited by Google for minutes to hours.
-- Phones and emails are personal data, so read [Responsible use](../../README.md#responsible-use) before outreach.
+- Phones and emails are personal data, so read [Responsible use](../../README.md#limits-and-responsible-use) before outreach.
 
 ## Related
 

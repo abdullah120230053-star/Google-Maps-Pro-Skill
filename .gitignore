@@ -3,6 +3,8 @@
 
 # Scrape outputs (may contain personal data — never commit)
 *.csv
+*.xlsx
+*.report.json
 results-*.json
 out/
 output/

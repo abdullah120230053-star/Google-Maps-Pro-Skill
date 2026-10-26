@@ -1,5 +1,5 @@
 {
-  "$comment": "Pre-approves the safe, local commands this kit uses so Claude can scrape on autopilot without a permission prompt each time. All entries are local-only (localhost / this folder's scripts / docker). Nothing here can reach the public internet except the scraper's own outbound calls.",
+  "$comment": "Allows the kit's localhost API, Docker commands and local CLI scripts. The scraper engine makes outbound requests; the Python CLI also contacts OpenStreetMap and business websites for geocoding and enrichment. Results are saved locally.",
   "permissions": {
     "allow": [
       "Bash(docker compose up:*)",

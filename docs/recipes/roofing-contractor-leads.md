@@ -41,7 +41,7 @@ Each search stops at about 120 listings. Add `--grid 3` to split the city into 9
 python3 scripts/scrape.py --keywords-file roofing.txt --city "Phoenix, AZ" --grid 3
 ```
 
-Add `--socials` to any of these commands for Instagram, Facebook and LinkedIn links found on each website.
+Social profile links and discovery-source URLs are included by default; use `--no-socials` to skip them.
 
 ## Example output
 
@@ -67,7 +67,7 @@ Illustrative rows only:
 - Emails appear only when a business publishes one on its website.
 - A grid with three keywords is a large job. The script prints a rate-limit warning and proceeds.
 - Add proxies for large or repeated runs. Heavy use without them can get your IP temporarily rate-limited.
-- Phones and emails are personal data, so read [Responsible use](../../README.md#responsible-use) before outreach.
+- Phones and emails are personal data, so read [Responsible use](../../README.md#limits-and-responsible-use) before outreach.
 
 ## Related
 

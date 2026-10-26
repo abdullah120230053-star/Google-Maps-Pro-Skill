@@ -7,15 +7,15 @@ It drives a headless browser against the public Google Maps site and returns a C
 
 The kit never calls the Google Maps Platform or the Places API. So there is no key to create and no API quota or billing to manage.
 
-Instead, the engine opens Google Maps the way a browser does. The engine is gosom/google-maps-scraper, run as its official Docker image on your own machine. It searches, scrolls the result list and reads each listing. The kit then trims the output to the 8 lead fields: name, phone, email, website, category, address, rating and review count.
+Instead, the engine opens Google Maps the way a browser does. The engine is gosom/google-maps-scraper, run as its official Docker image on your own machine. It searches, scrolls the result list and reads each listing. The PRO CLI exports the eight core lead fields plus city/language attribution, explainable scores and social links. Optional website checks add homepage observations.
 
 City names are turned into coordinates by OpenStreetMap Nominatim, which is free and also needs no key.
 
 ## Run it
 
 ```bash
-git clone https://github.com/Mahanaicoach/google-maps-scraper-kit.git
-cd google-maps-scraper-kit
+git clone https://github.com/abdullah120230053-star/Google-Maps-Pro-Skill.git
+cd Google-Maps-Pro-Skill
 docker compose up -d
 python3 scripts/scrape.py "plumbers in Phoenix AZ" --city "Phoenix, AZ" --depth 5
 ```
@@ -47,7 +47,7 @@ Skipping the API also skips its guarantees. These are the limits you accept inst
 - Add proxies for large or repeated runs. The engine rotates `socks5`, `socks5h`, `http` and `https` proxies for you.
 - Google Maps stops at about 120 listings per search. Add `--grid 3` to split the city into 9 map tiles, with duplicates removed.
 - Emails appear only when a business publishes one on its website.
-- Scraping Google Maps is against Google's Terms of Service, so read [Responsible use](../README.md#responsible-use) before you run large jobs.
+- Scraping Google Maps is against Google's Terms of Service, so read [Responsible use](../README.md#limits-and-responsible-use) before you run large jobs.
 
 ## Related
 

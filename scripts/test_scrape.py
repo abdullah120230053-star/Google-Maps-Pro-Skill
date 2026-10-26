@@ -159,23 +159,26 @@ class EndToEnd(unittest.TestCase):
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         out = os.path.join(tempfile.mkdtemp(), "leads.csv")
         argv = ["scrape.py", "plumbers in Austin TX", "--city", "Austin, TX",
-                "--grid", "2", "--no-deep-emails", "--out", out]
+                "--grid", "2", "--no-deep-emails", "--no-socials", "--out", out]
         log = io.StringIO()
         try:
             with mock.patch.object(scrape, "BASE", f"http://127.0.0.1:{srv.server_port}"), \
                  mock.patch.object(scrape, "geocode", return_value=("30.25", "-97.75", BBOX)), \
                  mock.patch.object(scrape.time, "sleep"), \
                  mock.patch.object(sys, "argv", argv), redirect_stdout(log):
-                scrape.main()
+                with self.assertRaises(SystemExit) as exit_info:
+                    scrape.main()
+                self.assertEqual(exit_info.exception.code, 2)  # partial results are explicit
         finally:
             srv.shutdown(); srv.server_close()
         text = log.getvalue()
         self.assertIn("cell 4/4: 3 rows, 6 unique so far", text)
         self.assertIn("cell 3/4 skipped", text)
         self.assertIn("dropped 1 rows outside the city box", text)
-        with open(out, newline="") as f:
+        with open(out, newline="", encoding="utf-8-sig") as f:
             rows = list(csv.reader(f))
-        self.assertEqual(rows[0], scrape.LEAD)
+        self.assertEqual(rows[0][:8], scrape.LEAD)
+        self.assertIn("lead_score", rows[0])
         self.assertEqual([r[0] for r in rows[1:]], ["Biz A", "Biz B", "Biz C", "Biz D", "Biz E"])
 
 

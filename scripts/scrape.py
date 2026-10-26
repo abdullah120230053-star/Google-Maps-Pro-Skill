@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Google Maps scraper CLI for lead generation: turns a keyword and a place into a CSV of the 8 lead fields.
+"""Google Maps Scraper PRO: filtered, scored, multilingual business lead campaigns.
 
 Uses only the Python standard library (no pip installs) and drives the kit's local engine.
 
@@ -24,7 +24,9 @@ Notes:
   descriptive User-Agent (set below). Do not loop it aggressively.
 """
 import argparse, csv, functools, io, json, math, os, re, sys, time, urllib.request, urllib.parse, urllib.error
+import html as html_lib
 from concurrent.futures import ThreadPoolExecutor
+import pro
 
 ENV_KEYS = ("SCRAPER_BASE_URL", "SCRAPER_PORT", "SCRAPER_API_KEY")
 
@@ -34,7 +36,7 @@ def load_env_file():
     port needs one edit. Variables already set in the environment win over the file."""
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, ".env")
     try:
-        with open(path) as f:
+        with open(path, encoding="utf-8-sig") as f:
             for line in f:
                 k, sep, v = line.strip().partition("=")
                 if sep and k in ENV_KEYS and k not in os.environ:
@@ -116,13 +118,26 @@ def in_bbox(row, bbox, margin=0.10):
 
 def dedupe(rows):
     """Keep the first row per place_id, else cid, else link, else title+address."""
-    seen, out = set(), []
+    seen, out = {}, []
     for r in rows:
         key = next((f"{k}:{r[k]}" for k in ("place_id", "cid", "link") if r.get(k)),
                    f"ta:{r.get('title', '')}|{r.get('address', '')}")
         if key not in seen:
-            seen.add(key); out.append(r)
+            seen[key] = r
+            out.append(r)
+        else:
+            first = seen[key]
+            for field in ("_cities", "_languages"):
+                if field in r:
+                    first[field] = list(dict.fromkeys(first.get(field, []) + r[field]))
     return out
+
+
+class JobError(RuntimeError):
+    def __init__(self, message, job_id="", active_unknown=False):
+        super().__init__(message)
+        self.job_id = job_id
+        self.active_unknown = active_unknown
 
 
 def run_job(body):
@@ -138,20 +153,29 @@ def run_job(body):
 
     print("▶ Polling…")
     status = None
-    for i in range(120):
-        _, raw = req("GET", f"/api/v1/jobs/{job_id}")
-        status = json.loads(raw).get("Status")
-        print(f"\r  status: {str(status):<10} (attempt {i + 1})", end="", flush=True)
+    deadline = time.monotonic() + body.get("max_time", 600) + 120
+    i = 0
+    while time.monotonic() < deadline:
+        i += 1
+        try:
+            _, raw = req("GET", f"/api/v1/jobs/{job_id}")
+            status = json.loads(raw).get("Status")
+        except (OSError, ValueError) as error:
+            raise JobError("Polling failed; job may still be running: " + str(error), job_id, active_unknown=True) from error
+        print(f"\r  status: {str(status):<10} (attempt {i})", end="", flush=True)
         if status == "ok":
             print(); break
         if status == "failed":
-            raise RuntimeError("\n✗ Job failed. If this keeps happening you may be rate-limited — wait or add proxies.")
+            raise JobError("\n✗ Job failed. Check the engine logs; repeated failures may indicate rate limiting.", job_id)
         time.sleep(8)
     else:
-        raise RuntimeError("\n✗ Timed out.")
+        raise JobError("Polling timed out; job may still be running.", job_id, active_unknown=True)
 
-    _, raw = req("GET", f"/api/v1/jobs/{job_id}/download")
-    return job_id, list(csv.DictReader(io.StringIO(raw.decode("utf-8", "replace"))))
+    try:
+        _, raw = req("GET", f"/api/v1/jobs/{job_id}/download")
+        return job_id, list(csv.DictReader(io.StringIO(raw.decode("utf-8-sig", "replace"))))
+    except (OSError, ValueError) as error:
+        raise JobError("Download failed: " + str(error), job_id) from error
 
 
 def collect_keywords(a):
@@ -160,8 +184,8 @@ def collect_keywords(a):
         kws.append(a.keyword)
     kws.extend(a.also or [])
     if a.keywords_file:
-        with open(a.keywords_file) as f:
-            kws.extend(line.strip() for line in f if line.strip() and not line.startswith("#"))
+        with open(a.keywords_file, encoding="utf-8-sig") as f:
+            kws.extend(line.strip() for line in f if line.strip() and not line.lstrip().startswith("#"))
     # de-dupe, keep order
     seen, out = set(), []
     for k in kws:
@@ -170,58 +194,141 @@ def collect_keywords(a):
     return out
 
 
-# ── Optional social enrichment (Instagram / Facebook / LinkedIn) ──────────────
-# Pure code (HTTP + regex) → ZERO LLM tokens. Visits each business website once.
-SOCIAL_RE = {
-    "instagram": re.compile(r"https?://(?:www\.)?instagram\.com/([A-Za-z0-9_.]+)", re.I),
-    "facebook":  re.compile(r"https?://(?:www\.|m\.|web\.)?facebook\.com/([A-Za-z0-9_.\-]+)", re.I),
-    "linkedin":  re.compile(r"https?://(?:[a-z]{2,3}\.)?linkedin\.com/(?:company|in|school)/([A-Za-z0-9_.\-%]+)", re.I),
-}
+# Social links are discovered on business websites; social platforms are not crawled.
+URL_RE = re.compile(r"(?:https?:)?//[^\s\"'<>\\]+", re.I)
 _SKIP_HANDLE = {"", "home", "pages", "people", "help", "about", "policies", "policy",
                 "legal", "tos", "privacy", "settings", "sharer", "tr", "profile.php",
                 "plugins", "dialog", "intent", "login", "share.php", "permalink.php",
                 "p", "reel", "reels", "explore", "stories", "tv", "watch", "events",
-                "groups", "marketplace", "gaming", "photo", "hashtag", "search"}
+                "groups", "marketplace", "gaming", "photo", "hashtag", "search", "intent",
+                "share", "login.php", "signup", "accounts", "i", "status", "shorts", "watch"}
+
+
+def is_social_site(url):
+    try:
+        host = (urllib.parse.urlsplit(url if "://" in url else "https://" + url).hostname or "").lower()
+    except ValueError:
+        return False
+    host = re.sub(r"^(?:www\.|m\.|web\.)", "", host)
+    return host in {"instagram.com", "facebook.com", "linkedin.com", "youtube.com", "tiktok.com",
+                    "x.com", "twitter.com", "wa.me", "api.whatsapp.com"} or bool(re.fullmatch(r"[a-z]{2,3}\.linkedin\.com", host))
+
+
+@functools.lru_cache(maxsize=512)
+def _fetch_page(url, timeout=8):
+    if not url:
+        return {"html": "", "url": "", "status": None, "state": "missing"}
+    if is_social_site(url):
+        return {"html": "", "url": url, "status": None, "state": "social_profile"}
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    try:
+        parsed = urllib.parse.urlsplit(url)
+        valid = parsed.scheme in {"http", "https"} and parsed.hostname and not parsed.username and not parsed.password
+        port = parsed.port
+    except ValueError:
+        valid = False
+    if not valid:
+        return {"html": "", "url": url, "status": None, "state": "invalid_url"}
+    try:
+        host = parsed.hostname.encode("idna").decode("ascii")
+    except UnicodeError:
+        return {"html": "", "url": url, "status": None, "state": "invalid_url"}
+    if ":" in host:
+        host = "[" + host + "]"
+    netloc = host + (":" + str(port) if port else "")
+    url = urllib.parse.urlunsplit((parsed.scheme, netloc, urllib.parse.quote(parsed.path, safe="/%:@"),
+                                   urllib.parse.quote(parsed.query, safe="=&%+/:?@"), ""))
+    try:
+        request = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (compatible; " + UA + ")", "Accept": "text/html"})
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            ctype = response.headers.get_content_type()
+            charset = response.headers.get_content_charset() or "utf-8"
+            raw = response.read(400_000)
+            try:
+                text = raw.decode(charset, "replace")
+            except LookupError:
+                text = raw.decode("utf-8", "replace")
+            return {"html": text if ctype in {"text/html", "application/xhtml+xml"} else "",
+                    "url": response.geturl(), "status": response.status,
+                    "state": "reachable" if ctype in {"text/html", "application/xhtml+xml"} else "non_html"}
+    except urllib.error.HTTPError as error:
+        result = {"html": "", "url": error.geturl(), "status": error.code,
+                  "state": "blocked" if error.code in {401, 403, 429} else "http_error"}
+        error.close()
+        return result
+    except (OSError, ValueError, urllib.error.URLError):
+        return {"html": "", "url": url, "status": None, "state": "unreachable"}
 
 def _fetch_html(url, timeout=10):
-    if not url:
-        return ""
-    if not url.startswith(("http://", "https://")):
-        url = "http://" + url
-    try:
-        r = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0 (compatible; " + UA + ")", "Accept": "text/html"})
-        with urllib.request.urlopen(r, timeout=timeout) as resp:
-            return resp.read(400_000).decode("utf-8", "replace")
-    except Exception:
-        return ""
-
-@functools.lru_cache(maxsize=512)  # ponytail: homepages only; evicted pages just refetch
-def _fetch_cached(url):
-    """Homepage fetch shared by the deep email pass and --socials (one fetch per site)."""
-    return _fetch_html(url, timeout=8)
+    return _fetch_page(url, timeout)["html"]
 
 def _find_socials(html):
-    out = {"instagram": "", "facebook": "", "linkedin": ""}
-    for plat, rx in SOCIAL_RE.items():
-        for m in rx.finditer(html or ""):
-            h = m.group(1).lower()
-            if h in _SKIP_HANDLE:
-                continue
-            if plat == "facebook" and (h.isdigit() or len(h) < 3):  # skip junk like /2008
-                continue
-            out[plat] = m.group(0).rstrip('"\'/').replace("\\", "")
-            break
+    out = dict.fromkeys(pro.SOCIAL_FIELDS, "")
+    text = html_lib.unescape((html or "").replace("\\/", "/"))
+    for raw in URL_RE.findall(text):
+        url = ("https:" + raw if raw.startswith("//") else raw).rstrip(".,);]")
+        try:
+            parsed = urllib.parse.urlsplit(url)
+            host = (parsed.hostname or "").lower()
+        except ValueError:
+            continue
+        host = re.sub(r"^(?:www\.|m\.|web\.)", "", host)
+        parts = [p for p in parsed.path.split("/") if p]
+        if not parts or parsed.username or parsed.password:
+            continue
+        handle, platform, path = parts[0], None, None
+        if host == "instagram.com" and handle.casefold() not in _SKIP_HANDLE:
+            platform, path = "instagram", "/" + handle
+        elif host == "facebook.com":
+            if handle == "profile.php":
+                ident = urllib.parse.parse_qs(parsed.query).get("id", [""])[0]
+                if ident.isdigit():
+                    platform, path = "facebook", "/profile.php?id=" + ident
+            elif handle == "pages" and len(parts) >= 3 and parts[2].isdigit():
+                platform, path = "facebook", "/" + "/".join(parts[:3])
+            elif handle.casefold() not in _SKIP_HANDLE:
+                platform, path = "facebook", "/" + handle
+        elif (host == "linkedin.com" or re.fullmatch(r"[a-z]{2,3}\.linkedin\.com", host)) and len(parts) >= 2 and handle in {"company", "in", "school"}:
+            platform, path, host = "linkedin", "/" + "/".join(parts[:2]), "linkedin.com"
+        elif host == "youtube.com" and (handle.startswith("@") or handle in {"channel", "c", "user"} and len(parts) >= 2):
+            platform, path = "youtube", "/" + (handle if handle.startswith("@") else "/".join(parts[:2]))
+        elif host == "tiktok.com" and handle.startswith("@"):
+            platform, path = "tiktok", "/" + handle
+        elif host in {"x.com", "twitter.com"} and handle.casefold() not in _SKIP_HANDLE:
+            platform, path, host = "x", "/" + handle, "x.com"
+        elif host in {"wa.me", "api.whatsapp.com"}:
+            phone = handle if host == "wa.me" else urllib.parse.parse_qs(parsed.query).get("phone", [""])[0]
+            phone = re.sub(r"[+\s()-]", "", phone)
+            if phone.isdigit() and 7 <= len(phone) <= 15:
+                platform, path, host = "whatsapp", "/" + phone, "wa.me"
+        if platform and not out[platform]:
+            out[platform] = "https://" + host + path
     return out
 
 def enrich_socials(results, workers=8):
-    """Add instagram/facebook/linkedin to each lead by scanning its website. Zero LLM tokens."""
-    for r in results:                       # make sure every row has the keys
-        r.setdefault("instagram", ""); r.setdefault("facebook", ""); r.setdefault("linkedin", "")
+    """Add published social profile URLs plus the page on which each URL was found."""
+    for r in results:
+        for field in pro.SOCIAL_FIELDS:
+            r.setdefault(field, "")
+            r.setdefault(field + "_source", "")
     todo = [r for r in results if r.get("website")]
     done = 0
     def work(r):
-        r.update(_find_socials(_fetch_cached(r["website"])))
+        site = r["website"]
+        direct = _find_socials(site) if is_social_site(site) else {}
+        page = _fetch_page(site) if not any(direct.values()) else {"html": "", "url": site}
+        sources = [(site, direct), (page["url"], _find_socials(page["html"]))]
+        # Contact links can carry profiles omitted from the homepage footer.
+        if page["html"] and not any(direct.values()) and not any(sources[1][1].values()):
+            for url in contact_links(page["html"], page["url"])[:1]:
+                extra = _fetch_page(url)
+                sources.append((extra["url"], _find_socials(extra["html"])))
+        for source, found in sources:
+            for field, url in found.items():
+                if url and not r[field]:
+                    r[field], r[field + "_source"] = url, source
     with ThreadPoolExecutor(max_workers=workers) as ex:
         for _ in ex.map(work, todo):
             done += 1
@@ -233,6 +340,7 @@ def enrich_socials(results, workers=8):
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 MAILTO_RE = re.compile(r"mailto:([^\"'>\s?]+)", re.I)
 HREF_RE = re.compile(r"<a\s[^>]*?href\s*=\s*[\"']([^\"']+)[\"'][^>]*>(.*?)</a>", re.I | re.S)
+CONTACT_RE = re.compile(r"contact|about|تواصل|اتصل|اتصال|من\s+نحن|عن[\s_-]*(?:الشركة|العيادة|المركز|المؤسسة)", re.I)
 _JUNK_EXT = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".css", ".js")
 _JUNK_DOMAIN = ("example", "sentry", "wixpress", "wix.com", "godaddy", "squarespace", "wordpress",
                 "domain.com", "email.com", "yourdomain", "schema.org", "w3.org", "sentry.io")
@@ -248,7 +356,8 @@ def extract_emails(html, site_host):
     """Emails from mailto: links and plain text, junk dropped, site-domain first, max 3."""
     site = _host(site_host or "")
     found = []
-    for e in MAILTO_RE.findall(html or "") + EMAIL_RE.findall(html or ""):
+    decoded = html_lib.unescape(html or "")
+    for e in MAILTO_RE.findall(decoded) + EMAIL_RE.findall(decoded):
         e = urllib.parse.unquote(e).strip().lower()
         local, _, dom = e.rpartition("@")
         if (not EMAIL_RE.fullmatch(e) or e.endswith(_JUNK_EXT) or local in _JUNK_LOCAL
@@ -264,9 +373,9 @@ def contact_links(html, base_url):
         base_url = "http://" + base_url
     host, out = _host(base_url), []
     for href, text in HREF_RE.findall(html or ""):
-        if not re.search(r"contact|about", href + " " + text, re.I):
+        if not CONTACT_RE.search(urllib.parse.unquote(href) + " " + text):
             continue
-        url = urllib.parse.urldefrag(urllib.parse.urljoin(base_url, href.strip()))[0]
+        url = urllib.parse.urldefrag(urllib.parse.urljoin(base_url, html_lib.unescape(href.strip())))[0]
         if url.startswith(("http://", "https://")) and _host(url) == host and url not in out:
             out.append(url)
     for path in ("/contact", "/contact-us", "/about", "/about-us"):
@@ -281,7 +390,8 @@ def enrich_emails(results, workers=8):
     done = 0
     def work(r):
         site = r["website"]
-        home = _fetch_cached(site)
+        page = _fetch_page(site)
+        home, site = page["html"], page["url"]
         found = extract_emails(home, site)
         if home and not found:
             pages = "".join(_fetch_html(u, timeout=8) for u in contact_links(home, site))
@@ -294,158 +404,46 @@ def enrich_emails(results, workers=8):
     print()
 
 
-def main():
-    ap = argparse.ArgumentParser(description="Scrape Google Maps business listings.")
-    ap.add_argument("keyword", nargs="?", help='e.g. "coffee shops in Austin TX"')
-    ap.add_argument("lat", nargs="?", help="latitude (optional if --city given)")
-    ap.add_argument("lon", nargs="?", help="longitude (optional if --city given)")
-    ap.add_argument("--keyword", dest="also", action="append", help="extra keyword (repeatable)")
-    ap.add_argument("--keywords-file", help="file with one keyword per line (batch)")
-    ap.add_argument("--city", help="city/place to auto-geocode for lat/lon")
-    ap.add_argument("--depth", type=int, default=5)
-    # Emails are ON by default (they're the most valuable lead field). Visits each business
-    # website to find an address — a bit slower. Use --no-email to skip for a fast run.
-    ap.add_argument("--email", dest="email", action="store_true", default=True, help=argparse.SUPPRESS)
-    ap.add_argument("--no-email", dest="email", action="store_false",
-                    help="skip email extraction for a faster run (emails are on by default)")
-    ap.add_argument("--no-deep-emails", dest="deep_emails", action="store_false",
-                    help="skip the second email pass over contact/about pages (on whenever emails are on)")
-    ap.add_argument("--grid", type=int, metavar="N",
-                    help="split the --city area into N x N map tiles, one job each, deduped "
-                         "(breaks Google's ~120 per search cap; max 10)")
-    ap.add_argument("--max-time", type=int, default=600, help="job time limit in SECONDS")
-    ap.add_argument("--out", default=None, help="output file path (default: results-<id>.csv). "
-                    "The extension picks the format: .csv (default) or .json")
-    ap.add_argument("--json", action="store_true", help="write JSON instead of the default CSV")
-    ap.add_argument("--full", action="store_true", help="keep ALL raw columns (default: lean lead fields)")
-    ap.add_argument("--fields", help="comma-separated columns to keep (overrides the default lead set)")
-    ap.add_argument("--socials", action="store_true",
-                    help="also find Instagram/Facebook/LinkedIn from each website (0 LLM tokens; slower)")
-    a = ap.parse_args()
+def check_websites(results, workers=8):
+    """Observe the homepage only; never infer permanent failure or website quality."""
+    def work(row):
+        site = row.get("website") or ""
+        page = _fetch_page(site)
+        state = page["state"]
+        contact = ""
+        for href, text in HREF_RE.findall(page["html"]):
+            candidate = urllib.parse.urljoin(page["url"], html_lib.unescape(href))
+            if CONTACT_RE.search(urllib.parse.unquote(href) + " " + text) and candidate.startswith(("https://", "http://")) and _host(candidate) == _host(page["url"]):
+                contact = candidate
+                break
+        https = urllib.parse.urlsplit(page["url"]).scheme == "https" if state in {"reachable", "non_html"} else ""
+        opportunities = []
+        if state == "missing":
+            opportunities.append("no website listed")
+        elif state == "social_profile":
+            opportunities.append("listed website is a social profile")
+        elif state in {"unreachable", "http_error", "blocked", "invalid_url"}:
+            opportunities.append("request needs manual review: " + state)
+        if https is False:
+            opportunities.append("final page uses HTTP")
+        if state == "reachable" and not contact:
+            opportunities.append("no contact/about link detected on homepage")
+        row.update(website_status=state, website_http_status=page["status"] or "",
+                   website_final_url=page["url"], website_https=https,
+                   website_contact_link=contact, website_opportunities="; ".join(opportunities))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        for i, _ in enumerate(executor.map(work, results), 1):
+            print(f"\r  websites: {i}/{len(results)} checked", end="", flush=True)
+    print()
 
-    keywords = collect_keywords(a)
-    if not keywords:
-        sys.exit("✗ No keywords. Pass a keyword, --keyword, or --keywords-file.")
 
-    if a.grid is not None:
-        if not a.city:
-            sys.exit("✗ --grid needs --city: the city's bounding box is what gets split into tiles.")
-        if not 1 <= a.grid <= 10:
-            sys.exit("✗ --grid must be between 1 and 10 (10 x 10 = 100 jobs is the ceiling).")
-
-    # Resolve coordinates: explicit lat/lon, else geocode --city, else geocode first keyword.
-    # --grid always geocodes --city, because it needs the city's bounding box.
-    lat, lon = a.lat, a.lon
-    if a.grid:
-        print(f"▶ Geocoding \"{a.city}\"…")
-        geo = geocode(a.city, with_bbox=True)
-        if not geo or not geo[2]:
-            sys.exit("✗ Could not resolve a bounding box. Try a clearer --city.")
-        lat, lon, bbox = geo
-        cells = grid_cells(bbox, a.grid)
-        print(f"  → bbox S{bbox[0]} N{bbox[1]} W{bbox[2]} E{bbox[3]}, {len(cells)} tiles")
-    elif not (lat and lon):
-        place = a.city or keywords[0]
-        print(f"▶ Geocoding \"{place}\"…")
-        coords = geocode(place)
-        if not coords:
-            sys.exit("✗ Could not resolve coordinates. Pass lat/lon or a clearer --city.")
-        lat, lon = coords
-        print(f"  → {lat}, {lon}")
-
-    if a.email:
-        print("ℹ Email extraction is ON (visits each business website; a bit slower). "
-              "Use --no-email for a fast run.")
-
-    # --- WARN, don't block: flag high-volume jobs (proceed anyway) ---
-    if a.depth >= 15 or len(keywords) >= 10 or (a.grid or 1) ** 2 >= 4:
-        print("⚠️  Heads-up: this is a large job (high depth, many keywords or a grid).")
-        print("    Running it back-to-back without proxies can get your IP temporarily rate-limited by")
-        print("    Google (clears in minutes–hours; returns empty/failed jobs meanwhile). For big or")
-        print("    repeated runs, add proxies. Proceeding…\n")
-
-    # Health check
-    try:
-        req("GET", "/api/v1/jobs")
-    except Exception as e:
-        sys.exit(f"✗ Scraper not reachable at {BASE} — run 'docker compose up -d' first.\n  ({e})")
-
-    body = {"name": "scrape-py", "keywords": keywords, "lang": "en", "zoom": 15,
-            "lat": str(lat), "lon": str(lon), "fast_mode": False, "radius": 10000,
-            "depth": a.depth, "email": a.email, "max_time": a.max_time}
-    if not a.grid:
-        print(f"▶ Creating job: {len(keywords)} keyword(s) @ {lat},{lon} depth={a.depth} email={a.email}")
-        for k in keywords:
-            print(f"    • {k}")
-        try:
-            job_id, rows = run_job(body)
-        except RuntimeError as e:
-            sys.exit(str(e))
-    else:
-        print(f"▶ Grid {a.grid}x{a.grid}: {len(cells)} jobs, one at a time, "
-              f"{len(keywords)} keyword(s) depth={a.depth} email={a.email}")
-        for k in keywords:
-            print(f"    • {k}")
-        job_id, rows = None, []
-        for i, cell in enumerate(cells, 1):  # sequential on purpose: never parallel jobs against Google
-            print(f"▶ Cell {i}/{len(cells)} @ {cell['lat']},{cell['lon']} radius={cell['radius']}m")
-            try:
-                jid, cell_rows = run_job(dict(body, **cell))
-            except Exception as e:
-                print(f"\n  ⚠ cell {i}/{len(cells)} skipped: {str(e).strip()}")
-                continue
-            job_id = job_id or jid
-            rows = dedupe(rows + cell_rows)
-            print(f"  cell {i}/{len(cells)}: {len(cell_rows)} rows, {len(rows)} unique so far")
-        if job_id is None:
-            sys.exit("✗ Every grid cell failed. You may be rate-limited — wait or add proxies.")
-        # radius does not clip results in normal mode, so tiles leak outside the city
-        kept = [r for r in rows if in_bbox(r, bbox)]
-        print(f"  dropped {len(rows) - len(kept)} rows outside the city box")
-        rows = kept
-    if a.full:
-        fields = list(rows[0].keys()) if rows else LEAD
-    elif a.fields:
-        fields = [c.strip() for c in a.fields.split(",") if c.strip()]
-    else:
-        fields = LEAD
-    results = [{k: r.get(k, "") for k in fields} for r in rows]
-    print(f"✓ Done — {len(results)} businesses (fields: {', '.join(fields)}).")
-
-    if a.email and a.deep_emails and "emails" in fields:
-        print("▶ Deep email pass: checking contact/about pages for rows with no email…")
-        engine = sum(1 for r in results if r.get("emails"))
-        enrich_emails(results)
-        total = sum(1 for r in results if r.get("emails"))
-        n = len(results)
-        print(f"  emails: {engine}/{n} from the engine, +{total - engine} from contact pages "
-              f"= {total}/{n} ({round(100 * total / n) if n else 0}%)")
-
-    if a.socials:
-        print("▶ Finding socials (Instagram / Facebook / LinkedIn) on each website…")
-        print("  ℹ Cost: this runs in CODE = 0 LLM tokens. It only adds ~40–50 tokens per business")
-        print("    IF you load the results into an AI's context (negligible if you keep the file on disk).")
-        enrich_socials(results)
-        fields = fields + ["instagram", "facebook", "linkedin"]
-        found = sum(1 for r in results if r.get("instagram") or r.get("facebook") or r.get("linkedin"))
-        print(f"  socials found for {found}/{len(results)} businesses")
-
-    # Default output is a CSV file (opens in Excel / Google Sheets). Use --json (or a .json --out path) for JSON.
-    as_json = a.json or (a.out and a.out.lower().endswith(".json"))
-    out = a.out or f"results-{job_id[:8]}.{'json' if as_json else 'csv'}"
-    if as_json:
-        with open(out, "w") as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
-    else:
-        with open(out, "w", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=fields)
-            w.writeheader()
-            w.writerows(results)
-    print(f"  saved → {out}")
-    for r in results[:5]:
-        tail = f" | IG:{r.get('instagram','') or '—'}" if a.socials else f" | {r.get('website','')}"
-        print(f"  • {r.get('title','')} | {r.get('phone','')} | {r.get('emails','')}{tail}")
+def main(argv=None):
+    import campaign
+    return campaign.run(argparse.Namespace(**globals()), argv)
 
 
 if __name__ == "__main__":
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     main()

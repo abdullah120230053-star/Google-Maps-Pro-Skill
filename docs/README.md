@@ -1,5 +1,8 @@
 # Guides and recipes
 
+- **[PRO guide](pro.md):** advanced filters, configurable scoring, multi-city bilingual campaigns,
+  social links, website checks, Excel exports and campaign reporting. This is the current Python CLI reference.
+
 Short guides for the Google Maps Scraper Kit. Each page covers one task with the exact commands. Start with the [kit README](../README.md) for setup.
 
 ## Guides

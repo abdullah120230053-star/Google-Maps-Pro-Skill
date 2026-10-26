@@ -1,200 +1,87 @@
-# Setup guide: Google Maps Scraper Kit
+# Setup guide: Google Maps Scraper PRO
 
-This guide takes you from a fresh machine to a finished Google Maps lead list in about 5 minutes.
-Most of that time is Docker pulling the engine image. A person or an agent can follow it step by step.
+The public [README](README.md#install-and-run) includes installation, examples, filters, scoring
+and export instructions. This page covers environment setup and operational details.
 
----
+## Prerequisites
 
-## 0. Install the prerequisites
+- Python **3.9+**: [download Python](https://www.python.org/downloads/).
+- Docker Desktop, or Docker Engine with the Compose plugin: [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+- Git for cloning, or download/extract the repository ZIP.
+- Internet access and enough disk space for the engine/browser image.
 
-Install these once:
+The CLI has no pip dependencies, including for Excel exports. An AI agent is optional.
 
-| Tool | Why | Get it |
-|---|---|---|
-| **Docker Desktop** | runs the scraper container | https://www.docker.com/products/docker-desktop |
-| **Claude Code** *(optional but recommended)* | lets Claude drive the scraper for you | https://claude.com/claude-code |
-| **git** *(optional)* | only if you'll push this to GitHub | https://git-scm.com |
+## Get this repository
 
-Check that Docker is running:
 ```bash
-docker --version        # should print a version
-docker ps               # should NOT error (means the daemon is up)
+git clone https://github.com/abdullah120230053-star/Google-Maps-Pro-Skill.git
+cd Google-Maps-Pro-Skill
 ```
 
-> **Platform notes:**
-> - **Apple Silicon (M1/M2/M3):** the engine image is `linux/amd64` and runs under emulation. If the
->   container won't start, uncomment the `platform: linux/amd64` line in `docker-compose.yml`.
-> - **Windows:** use `scripts/scrape.py` (run with `py` or `python3`). The bash script `scrape.sh` needs
->   **WSL2** or **Git Bash**.
+On Windows use PowerShell and `python` or `py`. On macOS/Linux use `python3` if needed.
+Keep the repository intact; copying the skill file alone does not include its helper scripts.
 
----
+## Optional local configuration
 
-## 1. Get the kit
+Defaults work without a configuration file. To customize the port:
 
-If someone shared the folder with you, `cd` into it:
-```bash
-cd google-maps-scraper-kit
+PowerShell:
+
+```powershell
+Copy-Item .env.example .env
 ```
-To clone it from GitHub instead: `git clone https://github.com/Mahanaicoach/google-maps-scraper-kit.git && cd google-maps-scraper-kit`.
 
-Create your local config. This step is optional, because the defaults work as they are:
+macOS/Linux:
+
 ```bash
 cp .env.example .env
 ```
 
----
+Edit `SCRAPER_PORT=8081` if 8080 is in use. Both Compose and the Python CLI read this file.
+Shell environment variables take precedence. A nonempty `SCRAPER_BASE_URL` overrides the CLI port;
+remove or update it if you change the port.
 
-## 2. Start the engine
+Leave `SCRAPER_API_KEY` empty for the default local engine. That variable only sends an HTTP
+header to an optional authenticating proxy; it does not secure the engine itself.
+
+## Start and verify
+
+Start Docker Desktop/the daemon, then:
 
 ```bash
 docker compose up -d
+docker compose ps
+docker compose logs --tail 100
 ```
 
-The first run pulls the `gosom/google-maps-scraper` image once, a few hundred MB. When it finishes, check it:
+The first start pulls the pinned `gosom/google-maps-scraper:v1.18.1` image and may take several minutes.
+Check [the local job API](http://localhost:8080/api/v1/jobs): it should respond with a JSON array.
+
+PowerShell health check:
+
+```powershell
+Invoke-RestMethod http://localhost:8080/api/v1/jobs
+```
+
+macOS/Linux health check:
 
 ```bash
-docker ps | grep gmaps-scraper          # should show it "Up"
-curl http://localhost:8080/api/v1/jobs  # should print [] (empty list) or existing jobs
+curl -f http://localhost:8080/api/v1/jobs
 ```
 
-The engine also serves a web UI and API docs in the browser:
-- Web UI: **http://localhost:8080**
-- OpenAPI docs: **http://localhost:8080/api/docs**
+Use your configured port if different. The web UI is at the API host's root; API docs are at `/api/docs`.
+The Compose port mapping binds only to `127.0.0.1`. Keep this boundary: the engine has no built-in authentication.
 
-If `curl` returns a JSON array, the engine is live.
+### Apple Silicon
 
-> **Rate limits and the law.** The engine sends real requests to Google Maps. Light use is fine. Big
-> jobs back to back, high `depth`, many keywords or scheduled runs without proxies can get your IP
-> temporarily rate-limited by Google, for minutes to hours. Your Google account is not affected. Run
-> one job at a time, start at `depth 5`, and add proxies for large or repeated runs. Scraping Google
-> Maps is against Google's Terms of Service, and phones and emails are personal data, so follow GDPR,
-> CCPA and CAN-SPAM. Details: [Responsible use](README.md#responsible-use).
+The pinned image may need amd64 emulation. If necessary, uncomment `platform: linux/amd64` in
+`docker-compose.yml`, then start it again. Emulation may be slower. For native-engine alternatives,
+consult the [upstream engine instructions](https://github.com/gosom/google-maps-scraper).
 
----
+### Docker is available but Compose is missing
 
-## 3. Run your first scrape from the terminal
-
-Use the bash script. Its arguments are `"<keyword>" <lat> <lon> [depth]`:
-
-```bash
-./scripts/scrape.sh "coffee shops in Austin TX" 30.2672 -97.7431 5
-```
-
-Or use the Python CLI, which needs no dependencies:
-
-```bash
-python3 scripts/scrape.py "gyms in Miami FL" 25.7617 -80.1918 --depth 5
-```
-
-Both scripts create the job, poll until it is done, download the CSV, keep the 8 lead fields and
-print a short preview. The full results go to a file.
-
-**Skip the coordinates.** Pass `--city` and the Python CLI geocodes the city for you:
-```bash
-python3 scripts/scrape.py "cafes in Austin TX" --city "Austin, TX" --depth 5
-```
-
-**Run many keywords in one job** from a file, one keyword per line:
-```bash
-python3 scripts/scrape.py --keywords-file examples/queries.example.txt --city "Denver, CO"
-```
-
-**Go past Google's ~120 results per search.** `--grid 3` splits the city into a 3 x 3 grid of map
-tiles. That is 9 jobs, run one at a time, with duplicates removed:
-```bash
-python3 scripts/scrape.py "plumbers in Phoenix AZ" --city "Phoenix, AZ" --grid 3
-```
-
----
-
-## 4. Run it from Claude Code or another agent
-
-The kit ships a Claude Code skill that teaches the agent the job API, the required fields, polling
-and the guardrails. It works with Claude Code, Codex, Cursor and any other
-[Agent Skills](https://agentskills.io)-compatible tool. Two files do the work:
-
-1. **[CLAUDE.md](CLAUDE.md)** loads automatically when you open this folder in Claude Code. It tells
-   the agent what the kit is and its key rules.
-2. **[.claude/skills/google-maps-scraper/SKILL.md](.claude/skills/google-maps-scraper/SKILL.md)** is
-   the skill. The agent loads it on demand for the exact API flow and best practices.
-
-There is nothing to connect. The engine is a local HTTP API at `http://localhost:8080`, and the agent
-calls it with `curl` and its normal shell access.
-
-**Option A: open the folder in Claude Code.** The skill and four slash commands load automatically.
-
-```bash
-cd google-maps-scraper-kit
-claude            # start Claude Code inside this folder
-```
-
-**Option B: install the skill into an agent you already use.**
-
-```bash
-npx skills add mahanaicoach/google-maps-scraper-kit
-```
-
-Then ask in plain language:
-> "Make sure the scraper is running, then scrape **dentists in Denver CO**, depth 10, and give me a table of name, phone, website."
-
-The agent checks the engine is up and starts it if not. It then builds the job with the required
-`max_time`, `lat` and `lon`, polls in the background, downloads the CSV and hands you clean rows. It
-follows the skill's safety rules on every run.
-
-> **MCP is optional.** You can wrap the API as a Model Context Protocol server, but a local,
-> single-user setup does not need one. The skill and the local API do the same job with less setup.
-
-### Slash commands
-
-Claude Code also offers these commands. Type `/` to see them:
-
-| Command | What it does |
-|---|---|
-| `/scrape <business> in <city, ST> [depth]` | Run a scrape, get a clean table |
-| `/scrape-batch <keywords-file> [--city "City, ST"]` | Scrape many queries in one job |
-| `/scrape-setup` | Start the scraper + health check |
-| `/scrape-jobs [list \| delete <id>]` | List or delete jobs |
-
-Plain requests work too: *"scrape gyms in Miami with phone numbers."* The kit's local commands and
-`localhost` calls are pre-approved in `.claude/settings.json`, so Claude Code does not prompt for
-each one.
-
----
-
-## 5. Stop and clean up
-
-```bash
-docker compose stop      # pause (keeps data + image)
-docker compose down      # stop + remove container (keeps named volumes/data)
-docker compose down -v   # ALSO delete scraped data volumes (full reset)
-```
-
-Results pile up in the data volume. Delete old jobs to free disk:
-```bash
-curl -X DELETE http://localhost:8080/api/v1/jobs/<job-id>
-```
-
----
-
-## 6. Troubleshooting
-
-| Symptom | Fix |
-|---|---|
-| `curl: connection refused` on :8080 | Container not up. `docker compose up -d`, then `docker ps`. |
-| `port is already allocated` / something else already uses 8080 | Set `SCRAPER_PORT=8081` in `.env`, then `docker compose up -d`. Compose publishes the scraper on that host port and `scripts/scrape.sh` and `scripts/scrape.py` read the same file, so nothing else needs editing. The port inside the container stays 8080 (do not change the right-hand side of the mapping). If your `.env` still has a `SCRAPER_BASE_URL` line, delete it or update its port: it overrides `SCRAPER_PORT`. The slash commands and the skill show `localhost:8080` in their examples, so tell Claude the port you picked. |
-| `422 missing max time` | Job body needs `max_time` (in **seconds**, e.g. `300`). |
-| `422 missing geo coordinates` | Job body needs `lat` and `lon` as **strings**, e.g. `"30.2672"`. |
-| Job stuck `working` forever | Lower `depth`, or the IP is being throttled by Google — wait, or add proxies (see skill). |
-| Empty CSV | Keyword too narrow or wrong geo — widen `radius` or fix `lat`/`lon`. |
-| Docker pull is slow | Normal on first run; it caches after that. |
-| `docker: 'compose' is not a docker command` / `unknown shorthand flag: 'd'` | The Compose plugin is missing. It ships with Docker Desktop — uninstalling Desktop leaves a **dangling symlink** in `~/.docker/cli-plugins/` that looks installed but isn't (`ls -l ~/.docker/cli-plugins/docker-compose`). Install it (`brew install docker-compose`), or skip Compose entirely — see *No Compose?* below. |
-| `no space left on device` while pulling | The **VM's** disk is full, not your Mac's — Colima/Lima/Docker Desktop each run a fixed-size virtual disk. Check with `docker system df`, reclaim with `docker image prune -a`, or grow the disk (Colima: `colima stop && colima start --disk 60`). The image bundles Chromium, so budget a few GB. |
-| `could not install driver: … 404 … playwright.azureedge.net` | In Docker, you are on an old image: `v1.15.0` and earlier download a driver build that no longer exists. Use the pinned `v1.18.1` in `docker-compose.yml`, then `docker compose pull && docker compose up -d`. Running natively: Playwright's old Azure CDN is retired; as of Sept 2026 the replacement hosts 400 too. Workaround under *Running without Docker* below. |
-
-
-### No Compose? Run the same container with `docker run`
-
-`docker-compose.yml` is thin. This command is the exact equivalent, including the localhost binding:
+Install the Compose plugin, or run the equivalent container directly (macOS/Linux/Git Bash syntax):
 
 ```bash
 docker run -d --name gmaps-scraper --restart unless-stopped \
@@ -203,46 +90,61 @@ docker run -d --name gmaps-scraper --restart unless-stopped \
   gosom/google-maps-scraper:v1.18.1 -web -data-folder /gmapsdata
 ```
 
-Add `--platform linux/amd64` on Apple Silicon. Stop it with `docker stop gmaps-scraper`.
+Use either Compose or the direct container, not both at the same time. If using direct Docker,
+manage it with `docker stop gmaps-scraper` and `docker start gmaps-scraper`.
 
-### Running without Docker (fallback)
-
-Use this when Docker is unavailable, or when amd64 emulation is too slow on Apple Silicon. The engine
-is a single Go binary. It serves the **same API on the same port**, so every script and slash command
-in the kit works unchanged.
+## Run a campaign
 
 ```bash
-go install github.com/gosom/google-maps-scraper@v1.18.1
-google-maps-scraper -web -addr 127.0.0.1:8080 -data-folder ./gmapsdata
+python scripts/scrape.py --campaign examples/campaign.example.json --out output/campaign.xlsx
 ```
 
-> Keep `-addr 127.0.0.1:8080`. The binary defaults to `:8080`, which means **all interfaces**, and the
-> engine has no authentication. In Docker the port mapping provides the localhost binding. Here you
-> provide it.
-
-**If the first job dies with `could not install driver: … 404`:** `playwright-go` fetches its driver
-from `playwright.azureedge.net`, which Microsoft retired. The replacement hosts currently answer `400`
-for driver zips, though browser downloads still work. The driver is the `playwright-core` npm package
-plus a `node` binary, so you can assemble it by hand. Match the version the error names:
+Or start smaller:
 
 ```bash
-V=1.57.0                                   # whatever version the error asks for
-D=~/Library/Caches/ms-playwright-go/$V     # Linux: ~/.cache/ms-playwright-go/$V
-npm pack playwright-core@$V && tar xzf playwright-core-$V.tgz
-mkdir -p "$D" && cp -R package "$D/package" && cp "$(command -v node)" "$D/node"
-"$D/node" "$D/package/cli.js" --version    # should print: Version <V>
+python scripts/scrape.py "dentists in Cairo, Egypt" --city "Cairo, Egypt" --depth 1 --no-email --no-socials --out output/check.csv
 ```
 
-Restart the engine. It finds the driver, downloads Chromium normally, and runs.
+Social links, email enrichment and scoring are normally on by default. The second command intentionally
+skips enrichment for a quick validation. Choose your own query and inspect results before larger runs.
 
----
+Read [docs/pro.md](docs/pro.md) for campaign schemas, all filters, scoring rules and reporting semantics.
 
-## 7. Best practices
+## Use with an agent
 
-The skill holds the full rules. These are the essentials:
-- Always send `max_time` (seconds) and `lat`/`lon` (strings).
-- Start at `depth 5` and run one job at a time. Raise depth only when needed.
-- Keep email extraction on, the default, because emails are the key lead field. Use `--no-email` for a
-  faster run without them.
-- Add proxies for big jobs. The engine rotates them for you.
-- Never commit result files. They are git-ignored for you.
+Open this repository folder in Codex, Claude Code or another terminal-capable agent.
+The project contains `AGENTS.md`, `CLAUDE.md`, the skill at
+`.claude/skills/google-maps-scraper/SKILL.md`, and four Claude Code slash commands.
+
+The agent should use the scripts in this checkout. Installing a differently named upstream skill
+does not install this repository's PRO implementation.
+
+## Troubleshooting
+
+- **Python not found:** try `py` (Windows) or `python3` (macOS/Linux); confirm version 3.9+.
+- **Docker daemon unavailable:** start it and run `docker compose ps`.
+- **Port occupied:** change `SCRAPER_PORT` in `.env`; check for a stale `SCRAPER_BASE_URL` override.
+- **Connection refused:** wait for engine startup and inspect `docker compose logs --tail 100`.
+- **Image/browser startup fails:** inspect engine logs and report the image tag, platform and redacted error.
+- **Empty output:** check the query, coordinates and filters; review the campaign report's counts.
+- **Missing contact fields:** only published contact details can be discovered.
+- **Exit 2 after jobs ran:** results may be partial; inspect the report before retrying.
+- **Polling lost track of a job:** check that job in the engine UI before launching another campaign.
+- **Slow grids:** job count is cities × languages × grid tiles; start with one city and low depth.
+
+If geocoding is unavailable, use explicit city coordinates for non-grid campaigns.
+For engine problems, consult [upstream](https://github.com/gosom/google-maps-scraper); for PRO CLI bugs,
+use [this repository's issues](https://github.com/abdullah120230053-star/Google-Maps-Pro-Skill/issues).
+
+## Stop the engine and manage data
+
+```bash
+docker compose stop
+docker compose start
+```
+
+`docker compose down` removes the container but retains named data volumes.
+For an intentional full reset only, `docker compose down -v` also deletes stored job data.
+
+Exports in `output/` are independent of the Docker volumes. Keep contacts, reports and `.env` out of commits.
+See [limits and responsible use](README.md#limits-and-responsible-use) before larger runs.

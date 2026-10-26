@@ -1,0 +1,25 @@
+{
+  "name": "Cairo and Giza dental clinics",
+  "keywords": ["dentists in {city}", "dental clinics in {city}"],
+  "keywords_by_language": {
+    "ar": ["عيادات أسنان في {city}", "أطباء أسنان في {city}"]
+  },
+  "cities": [
+    {
+      "name": "Cairo, Egypt",
+      "names": {"ar": "القاهرة، مصر", "en": "Cairo, Egypt"},
+      "lat": "30.0444",
+      "lon": "31.2357"
+    },
+    {
+      "name": "Giza, Egypt",
+      "names": {"ar": "الجيزة، مصر", "en": "Giza, Egypt"},
+      "lat": "30.0131",
+      "lon": "31.2089"
+    }
+  ],
+  "languages": ["en", "ar"],
+  "filters": {"min_reviews": 30, "has_phone": true},
+  "scoring": {"profile": "website-services", "reviews_min": 30, "rating_min": 4},
+  "options": {"depth": 5, "max_time": 600, "socials": true, "website_check": true}
+}
