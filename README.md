@@ -10,9 +10,6 @@ English queries, website opportunity checks, and campaign reports. The Python cl
 standard library: **no pip packages, Google Maps API key or scraping subscription are required**.
 The scraping engine runs in Docker; an AI coding agent is optional.
 
-This project extends [Mahan's Google Maps Scraper Kit](https://github.com/Mahanaicoach/google-maps-scraper-kit)
-and uses the official [gosom/google-maps-scraper](https://github.com/gosom/google-maps-scraper) engine.
-Original licenses and attribution are preserved.
 
 ## Contents
 
