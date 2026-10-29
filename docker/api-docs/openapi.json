@@ -1,0 +1,438 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Google Maps Scraper PRO — Engine Job API",
+    "version": "1.0.0",
+    "description": "Local job API for the pinned gosom engine. PRO filters, scoring and Excel generation run in the Python CLI. Uppercase job response keys match the running engine."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Same origin as this documentation"
+    }
+  ],
+  "paths": {
+    "/api/v1/jobs": {
+      "get": {
+        "summary": "List all stored jobs",
+        "operationId": "listJobs",
+        "responses": {
+          "200": {
+            "description": "Stored jobs; null may occur for an uninitialized list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "nullable": true,
+                  "items": {
+                    "$ref": "#/components/schemas/Job"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Engine/storage failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create an asynchronous scraping job",
+        "operationId": "createJob",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateJob"
+              },
+              "example": {
+                "name": "Cairo dentists",
+                "keywords": [
+                  "dentists in Cairo, Egypt"
+                ],
+                "lang": "en",
+                "lat": "30.0444",
+                "lon": "31.2357",
+                "zoom": 15,
+                "radius": 10000,
+                "depth": 5,
+                "fast_mode": false,
+                "email": true,
+                "max_time": 600
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Job accepted. Poll status before downloading.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedJob"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid UUID, malformed JSON or validation failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Engine/storage failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "summary": "Read job status and settings",
+        "operationId": "getJob",
+        "responses": {
+          "200": {
+            "description": "Job details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid UUID, malformed JSON or validation failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Engine/storage failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a selected stored job",
+        "description": "Not a documented cancellation API. Do not use to stop active work.",
+        "operationId": "deleteJob",
+        "responses": {
+          "200": {
+            "description": "Deleted. Empty response body."
+          },
+          "422": {
+            "description": "Invalid UUID, malformed JSON or validation failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Engine/storage failure.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{id}/download": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "summary": "Download raw engine results as CSV",
+        "operationId": "downloadResults",
+        "responses": {
+          "200": {
+            "description": "CSV attachment; download after Status is ok.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CSV file not found.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid ID.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Download failed.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateJob": {
+        "type": "object",
+        "required": [
+          "name",
+          "keywords",
+          "lang",
+          "depth",
+          "max_time"
+        ],
+        "description": "Always provide string lat/lon for reliable location targeting; they are mandatory in fast mode. Specify all recommended settings rather than relying on defaults.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "keywords": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "lang": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2
+          },
+          "depth": {
+            "type": "integer",
+            "description": "Nonzero; use a positive scroll depth, e.g. 5."
+          },
+          "max_time": {
+            "type": "integer",
+            "description": "Nonzero input duration in seconds; use a positive value."
+          },
+          "lat": {
+            "type": "string",
+            "description": "Latitude; required when fast_mode is true."
+          },
+          "lon": {
+            "type": "string",
+            "description": "Longitude; required when fast_mode is true."
+          },
+          "zoom": {
+            "type": "integer"
+          },
+          "radius": {
+            "type": "integer",
+            "description": "Meters."
+          },
+          "fast_mode": {
+            "type": "boolean"
+          },
+          "email": {
+            "type": "boolean"
+          },
+          "extra_reviews": {
+            "type": "boolean"
+          },
+          "proxies": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreatedJob": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "Job": {
+        "type": "object",
+        "properties": {
+          "ID": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "Name": {
+            "type": "string"
+          },
+          "Date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "Status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "working",
+              "ok",
+              "failed"
+            ]
+          },
+          "Data": {
+            "$ref": "#/components/schemas/JobData"
+          }
+        }
+      },
+      "JobData": {
+        "type": "object",
+        "properties": {
+          "keywords": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "lang": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2
+          },
+          "depth": {
+            "type": "integer",
+            "description": "Nonzero; use a positive scroll depth, e.g. 5."
+          },
+          "max_time": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Stored duration in nanoseconds; unlike the seconds supplied when creating a job."
+          },
+          "lat": {
+            "type": "string",
+            "description": "Latitude; required when fast_mode is true."
+          },
+          "lon": {
+            "type": "string",
+            "description": "Longitude; required when fast_mode is true."
+          },
+          "zoom": {
+            "type": "integer"
+          },
+          "radius": {
+            "type": "integer",
+            "description": "Meters."
+          },
+          "fast_mode": {
+            "type": "boolean"
+          },
+          "email": {
+            "type": "boolean"
+          },
+          "extra_reviews": {
+            "type": "boolean"
+          },
+          "proxies": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

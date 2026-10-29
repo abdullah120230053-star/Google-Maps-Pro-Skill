@@ -31,6 +31,7 @@ services:
       - "127.0.0.1:${SCRAPER_PORT:-8080}:8080"
     volumes:
       - ./docker/web-ui.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/api-docs:/usr/share/nginx/html/pro-api:ro
 
 volumes:
   gmaps_data:

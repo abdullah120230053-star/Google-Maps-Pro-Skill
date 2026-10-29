@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API Documentation · Google Maps Scraper PRO</title>
+  <style>
+    :root{color-scheme:light;--ink:#172b3a;--muted:#526677;--line:#dce4e9;--accent:#075b81;--paper:#f6f8fa}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif;background:white}
+    a{color:var(--accent);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible,button:focus-visible{outline:3px solid #d58b00;outline-offset:4px}
+    header{padding:22px 5%;border-bottom:1px solid var(--line);display:flex;gap:24px;justify-content:space-between;align-items:center}header strong{font-size:18px}header nav{display:flex;gap:24px;flex-wrap:wrap}
+    .layout{max-width:1380px;margin:auto;display:grid;grid-template-columns:235px minmax(0,1fr);gap:60px;padding:40px 5%}
+    aside{position:sticky;top:30px;align-self:start}aside p{color:var(--muted);font-size:12px;letter-spacing:.1em;font-weight:650}aside a{display:block;padding:7px 0;text-decoration:none}
+    main{min-width:0;max-width:940px}h1{font-size:36px;line-height:1.2;letter-spacing:-.03em;margin:8px 0 20px}h2{font-size:24px;margin:0 0 14px;line-height:1.4}h3{font-size:18px;margin:26px 0 10px}section{padding:32px 0;border-bottom:1px solid var(--line)}section:first-child{padding-top:0}.eyebrow{font-size:13px;color:var(--muted)}.lead{font-size:18px;color:var(--muted)}.note{background:var(--paper);border-left:3px solid var(--accent);padding:16px 20px;margin:20px 0}
+    code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:14px}code{overflow-wrap:anywhere}pre{padding:20px;background:#102735;color:#e5f0f5;border-radius:5px;overflow:auto;line-height:1.65;white-space:pre;tab-size:2}pre code{overflow-wrap:normal}pre:focus-visible{outline:3px solid #d58b00}
+    .table-scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}th{text-align:left;background:var(--paper);font-weight:650}td,th{padding:12px 14px;vertical-align:top;border-bottom:1px solid var(--line)}.method{display:inline-block;font:700 12px ui-monospace,monospace;color:white;background:var(--accent);padding:4px 8px;border-radius:3px;letter-spacing:.03em;margin-right:10px}.post{background:#27633d}.delete{background:#9e382d}.endpoint{display:flex;align-items:center;gap:4px;flex-wrap:wrap}.endpoint code{font-size:20px}.muted{color:var(--muted)}button{font:inherit;cursor:pointer;padding:9px 16px;background:var(--accent);color:white;border:0;border-radius:4px}button:disabled{cursor:wait;opacity:.6}output{display:block;margin-top:12px;min-height:26px}footer{padding:32px 5%;color:var(--muted);font-size:14px}.skip{position:absolute;left:-10000px}.skip:focus{left:16px;top:12px;background:white;padding:12px;z-index:2}
+    @media(max-width:850px){.layout{display:block;padding:28px 6%}aside{position:static;margin-bottom:30px}aside nav{display:flex;flex-wrap:wrap;gap:8px 22px}aside a{padding:3px 0}header{display:block}header nav{margin-top:12px}h1{font-size:30px}.endpoint code{font-size:16px}}
+  </style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to documentation</a>
+<header><strong>Google Maps Scraper PRO</strong><nav aria-label="Project"><a href="/">Back to scraper</a><a href="/api/openapi.json">OpenAPI JSON</a><a href="https://github.com/abdullah120230053-star/Google-Maps-Pro-Skill">Project on GitHub</a></nav></header>
+<div class="layout">
+<aside><p>API REFERENCE</p><nav aria-label="Documentation"><a href="#overview">Overview &amp; connection</a><a href="#workflow">Job workflow</a><a href="#create">POST · Create job</a><a href="#list">GET · List jobs</a><a href="#status">GET · Job status</a><a href="#download">GET · Download CSV</a><a href="#delete">DELETE · Job</a><a href="#errors">Errors &amp; troubleshooting</a><a href="#pro">PRO features</a></nav></aside>
+<main id="main">
+<section id="overview"><div class="eyebrow">LOCAL ENGINE API · v1 · JSON / CSV</div><h1>API Documentation</h1><p class="lead">Create a scrape, follow its progress, and download the results. This reference loads locally without an external documentation viewer.</p><p>Base URL: <code data-origin>http://localhost:8080</code>. Paths below are relative to this address. Requests with JSON bodies need <code>Content-Type: application/json</code>.</p><div class="note">The default local engine has no authentication. Keep the published port on <code>127.0.0.1</code>. An <code>X-API-Key</code> header only provides protection if you separately configure a proxy that validates it.</div><button id="check" type="button">Check API connection</button><output id="connection" aria-live="polite">No request has been sent. This check only lists jobs; it does not start or delete one.</output><noscript><p>Interactive connection checks require JavaScript. All documentation and examples below remain readable without it.</p></noscript></section>
+
+<section id="workflow"><h2>Job workflow</h2><ol><li>Send a <code>POST /api/v1/jobs</code> request with your query and location.</li><li>Read the lowercase <code>id</code> from the creation response.</li><li>Poll <code>GET /api/v1/jobs/{id}</code>, typically every 8–15 seconds.</li><li>When <code>Status</code> is <code>ok</code>, download the CSV.</li></ol><p>States: <code>pending</code> → <code>working</code> → <code>ok</code> or <code>failed</code>. Run one job at a time. If a status check fails, check the existing job before creating another.</p><p><strong>Capitalization matters:</strong> create returns <code>id</code>; job objects use <code>ID</code>, <code>Name</code>, <code>Date</code>, <code>Status</code> and <code>Data</code>. Input <code>max_time</code> is seconds, while <code>Data.max_time</code> in responses is stored as nanoseconds.</p></section>
+
+<section id="create"><h2 class="endpoint"><span class="method post">POST</span><code>/api/v1/jobs</code></h2><p>Create an asynchronous scraping job. Returns <strong>201</strong> and its ID; this does not mean scraping is complete.</p><h3>Request body</h3><div class="table-scroll"><table><thead><tr><th>Field</th><th>Type</th><th>Usage</th></tr></thead><tbody>
+<tr><td><code>name</code></td><td>string</td><td>Required, nonempty job label.</td></tr>
+<tr><td><code>keywords</code></td><td>string[]</td><td>Required, nonempty array. Include the location in each term.</td></tr>
+<tr><td><code>lang</code></td><td>string</td><td>Required, two-letter language code, such as <code>en</code> or <code>ar</code>.</td></tr>
+<tr><td><code>depth</code></td><td>integer</td><td>Required, nonzero scroll depth. Start with 5; larger runs take longer.</td></tr>
+<tr><td><code>max_time</code></td><td>integer</td><td>Required, nonzero job time limit in <strong>seconds</strong>. Use a positive value such as 600.</td></tr>
+<tr><td><code>lat</code>, <code>lon</code></td><td>string</td><td>Recommended for location targeting; required in fast mode. Send strings, not numbers.</td></tr>
+<tr><td><code>zoom</code></td><td>integer</td><td>Send 15 for the example city-level search.</td></tr>
+<tr><td><code>radius</code></td><td>integer</td><td>Search radius in meters; the examples use 10000.</td></tr>
+<tr><td><code>fast_mode</code></td><td>boolean</td><td>Use <code>false</code> for normal data collection. Fast mode returns reduced data.</td></tr>
+<tr><td><code>email</code></td><td>boolean</td><td><code>true</code> asks the engine to check business websites for emails. Slower; coverage depends on published contacts.</td></tr>
+<tr><td><code>extra_reviews</code></td><td>boolean</td><td>Optional extended review collection; increases work and output size.</td></tr>
+<tr><td><code>proxies</code></td><td>string[] or null</td><td>Optional proxy URLs. Keep any proxy credentials out of shared examples and reports.</td></tr>
+</tbody></table></div><p>The examples specify the full recommended body instead of depending on unspecified server defaults.</p><pre tabindex="0"><code data-base>curl -X POST "http://localhost:8080/api/v1/jobs" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Cairo dentists",
+    "keywords": ["dentists in Cairo, Egypt"],
+    "lang": "en",
+    "lat": "30.0444", "lon": "31.2357",
+    "zoom": 15, "radius": 10000, "depth": 5,
+    "fast_mode": false, "email": true,
+    "max_time": 600
+  }'</code></pre><p>Example response:</p><pre tabindex="0"><code>{"id":"00000000-0000-4000-8000-000000000001"}</code></pre><h3>PowerShell</h3><pre tabindex="0"><code data-base>$body = @{
+  name = "Cairo dentists"
+  keywords = @("dentists in Cairo, Egypt")
+  lang = "en"; lat = "30.0444"; lon = "31.2357"
+  zoom = 15; radius = 10000; depth = 5
+  fast_mode = $false; email = $true; max_time = 600
+} | ConvertTo-Json
+$job = Invoke-RestMethod -Method Post -Uri "http://localhost:8080/api/v1/jobs" `
+  -ContentType "application/json" -Body $body
+$job.id</code></pre><p>On Windows, use <code>curl.exe</code> if your shell maps <code>curl</code> to another command.</p></section>
+
+<section id="list"><h2 class="endpoint"><span class="method">GET</span><code>/api/v1/jobs</code></h2><p>List stored jobs. Returns <strong>200</strong> and a JSON array (or <code>null</code> when the engine has no initialized job list). This API does not expose pagination parameters.</p><pre tabindex="0"><code data-base>curl "http://localhost:8080/api/v1/jobs"</code></pre><p>Illustrative response; no real business data is shown here:</p><pre tabindex="0"><code>[
+  {
+    "ID": "00000000-0000-4000-8000-000000000001",
+    "Name": "Cairo dentists",
+    "Date": "2026-10-29T10:00:00Z",
+    "Status": "working",
+    "Data": {
+      "keywords": ["dentists in Cairo, Egypt"],
+      "lang": "en", "depth": 5,
+      "lat": "30.0444", "lon": "31.2357",
+      "max_time": 600000000000
+    }
+  }
+]</code></pre></section>
+
+<section id="status"><h2 class="endpoint"><span class="method">GET</span><code>/api/v1/jobs/{id}</code></h2><p>Read one job by its UUID. Returns <strong>200</strong> with the same job-object structure as the list response, <strong>404</strong> if absent, or <strong>422</strong> for an invalid ID.</p><pre tabindex="0"><code data-base>curl "http://localhost:8080/api/v1/jobs/00000000-0000-4000-8000-000000000001"</code></pre><p>Use the ID returned by your own create request. The UUID above is an example and is not an existing job.</p><pre tabindex="0"><code data-base># PowerShell: read status without starting another scrape
+Invoke-RestMethod "http://localhost:8080/api/v1/jobs/$($job.id)" |
+  Select-Object ID, Name, Status</code></pre></section>
+
+<section id="download"><h2 class="endpoint"><span class="method">GET</span><code>/api/v1/jobs/{id}/download</code></h2><p>Download raw engine results after <code>Status</code> becomes <code>ok</code>. Returns <strong>200</strong>, <code>Content-Type: text/csv</code> and an attachment filename. A missing CSV returns <strong>404</strong>; malformed IDs return <strong>422</strong>.</p><pre tabindex="0"><code data-base>curl "http://localhost:8080/api/v1/jobs/00000000-0000-4000-8000-000000000001/download" \
+  --output results.csv</code></pre><pre tabindex="0"><code data-base>Invoke-WebRequest "http://localhost:8080/api/v1/jobs/$($job.id)/download" `
+  -OutFile "results.csv"</code></pre><p>The raw CSV includes engine fields such as <code>title</code>, <code>phone</code>, <code>emails</code>, <code>website</code>, <code>category</code>, <code>address</code>, <code>review_rating</code>, <code>review_count</code>, IDs and coordinates. It does not include the PRO CLI's scoring or enrichment passes.</p></section>
+
+<section id="delete"><h2 class="endpoint"><span class="method delete">DELETE</span><code>/api/v1/jobs/{id}</code></h2><p>Delete a selected stored job. Successful deletion returns <strong>200 with an empty body</strong>. Invalid IDs return <strong>422</strong>; engine-side deletion failures return <strong>500</strong>.</p><div class="note">Deletion is a data-removal operation, not a documented cancellation API. Do not use it to stop active scraping. Save any needed results first.</div><pre tabindex="0"><code data-base>curl -X DELETE "http://localhost:8080/api/v1/jobs/00000000-0000-4000-8000-000000000001"</code></pre><p>Examples are documentation only; this page never creates or deletes jobs automatically.</p></section>
+
+<section id="errors"><h2>Errors &amp; troubleshooting</h2><div class="table-scroll"><table><thead><tr><th>Code</th><th>Meaning</th><th>Next step</th></tr></thead><tbody><tr><td>200</td><td>Successful read, download or delete</td><td>Check the documented body format; delete has no JSON body.</td></tr><tr><td>201</td><td>Job created</td><td>Poll its status before downloading.</td></tr><tr><td>404</td><td>Job or result file not found</td><td>Check the UUID and completion status.</td></tr><tr><td>405</td><td>Unsupported HTTP method</td><td>Use the method shown above.</td></tr><tr><td>422</td><td>Invalid JSON, missing job fields or malformed UUID</td><td>Read the message; check name, keywords, language, depth, max_time and coordinate types.</td></tr><tr><td>500</td><td>Engine/storage failure</td><td>Inspect container logs.</td></tr><tr><td>502 / 504</td><td>Proxy cannot reach the engine or timed out</td><td>Check that the engine container is running.</td></tr></tbody></table></div><p>JSON errors use this shape; download errors may be plain text:</p><pre tabindex="0"><code>{"code":422,"message":"missing max time"}</code></pre><p>Check logs with <code>docker compose logs --tail 100</code>. For a failed scraping job, the HTTP status request can still return 200: inspect its <code>Status</code> field. Repeated failures can reflect rate limits, network issues or browser errors; they are not evidence of one specific cause.</p></section>
+
+<section id="pro"><h2>Where the PRO features run</h2><p>This HTTP API manages raw engine jobs. Multi-city campaigns, Arabic/English templates, filters, scoring, social profile discovery, website observations and formatted Excel reports run in the repository's Python CLI:</p><pre tabindex="0"><code>python scripts/scrape.py --campaign examples/campaign.example.json \
+  --out output/campaign.xlsx</code></pre><p>See the <a href="https://github.com/abdullah120230053-star/Google-Maps-Pro-Skill/blob/main/docs/pro.md">PRO guide</a> for campaign settings and export semantics. For machine-readable API definitions, download <a href="/api/openapi.json">OpenAPI JSON</a>.</p></section>
+</main></div>
+<footer>Google Maps Scraper PRO · Local documentation for the gosom engine job API. Request examples use synthetic jobs.</footer>
+<script>
+  const base = location.origin;
+  document.querySelectorAll('[data-origin]').forEach(el => { el.textContent = base; });
+  document.querySelectorAll('[data-base]').forEach(el => { el.textContent = el.textContent.replaceAll('http://localhost:8080', base); });
+  const button = document.getElementById('check');
+  const status = document.getElementById('connection');
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    status.textContent = 'Checking local API…';
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch('/api/v1/jobs', {signal: controller.signal});
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const jobs = await response.json();
+      if (jobs !== null && !Array.isArray(jobs)) throw new Error('Unexpected response format');
+      status.textContent = 'API reachable · HTTP 200 · ' + (jobs || []).length + ' stored jobs. No jobs were changed.';
+    } catch (error) {
+      status.textContent = 'Connection check failed: ' + error.message + '. Check the engine container and logs.';
+    } finally { clearTimeout(timeout); button.disabled = false; }
+  });
+</script>
+</body></html>

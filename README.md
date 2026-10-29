@@ -96,8 +96,10 @@ Wait until the engine responds:
 
 The job endpoint should return a JSON array, often `[]` on a fresh installation.
 The engine is intentionally bound to `127.0.0.1` because it has no built-in authentication.
-Compose places a small Nginx web proxy in front of the engine on that localhost port. It changes
-the **Star on GitHub** button to this PRO repository; the scraper image and API remain unchanged.
+Compose places a small Nginx web proxy in front of the engine on that localhost port. It points
+the **Star on GitHub** and **Support on GitHub** buttons to this PRO repository. Local API docs at
+`/api/docs` load without an external viewer and include a downloadable `/api/openapi.json` specification.
+The scraper image and job API remain unchanged.
 
 ### 4. Run your first search
 
