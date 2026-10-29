@@ -32,6 +32,8 @@ The scraping engine runs in Docker; an AI coding agent is optional.
 
 ## Features
 
+- **Local web workspace:** responsive search form, live job totals, status filters, searchable history,
+  job details, CSV downloads and a confirmation dialog for deleting finished jobs. Loads without external UI scripts.
 - **Lead filtering:** rating/review ranges, categories, exclusions, listing status, contact availability and minimum score.
 - **Explainable scoring:** configurable rules, two built-in profiles, reasons beside every score, and priority sorting.
 - **Multi-city campaigns:** per-city coordinates or grids, sequential jobs, deduplication and city/language attribution.
@@ -96,10 +98,15 @@ Wait until the engine responds:
 
 The job endpoint should return a JSON array, often `[]` on a fresh installation.
 The engine is intentionally bound to `127.0.0.1` because it has no built-in authentication.
-Compose places a small Nginx web proxy in front of the engine on that localhost port. It points
-the **Star on GitHub** and **Support on GitHub** buttons to this PRO repository. Local API docs at
+Compose places a small Nginx web proxy in front of the engine on that localhost port. It serves the
+PRO workspace and points its **Star on GitHub** and **Support** links to this repository. Local API docs at
 `/api/docs` load without an external viewer and include a downloadable `/api/openapi.json` specification.
 The scraper image and job API remain unchanged.
+
+The web workspace creates raw engine searches and downloads their CSV results. It refreshes job status
+every 15 seconds while the page is visible. Multi-city campaigns, scoring, social enrichment and formatted
+Excel reports continue to run through the Python CLI described below. Proxy URLs entered in the web form
+are stored with job settings by the engine; they are not saved to browser storage.
 
 ### 4. Run your first search
 

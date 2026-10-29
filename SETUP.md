@@ -72,10 +72,14 @@ curl -f http://localhost:8080/api/v1/jobs
 
 Use your configured port if different. The web UI is at the API host's root; API docs are at `/api/docs`.
 The Compose port mapping binds only to `127.0.0.1`. Keep this boundary: the engine has no built-in authentication.
-Compose routes requests through a small Nginx proxy that points the **Star on GitHub** and
-**Support on GitHub** buttons to the PRO repository and serves local API docs at `/api/docs`.
+Compose routes requests through a small Nginx proxy that serves the responsive PRO workspace,
+project support links, and local API docs at `/api/docs`.
 The OpenAPI JSON is available at `/api/openapi.json`. The engine stays internal to the Compose network.
 The direct `docker run` fallback below runs the original interface without these customizations.
+
+The web form creates engine jobs. It provides searchable history, status filters, details and raw
+CSV downloads; active jobs cannot be deleted from the workspace. Use the Python CLI for PRO campaign
+filtering, scoring, social enrichment and Excel output. Existing engine jobs remain available in both interfaces.
 
 ### Apple Silicon
 
