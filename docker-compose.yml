@@ -17,12 +17,20 @@ services:
     container_name: gmaps-scraper
     restart: unless-stopped
     command: ["-web", "-data-folder", "/gmapsdata"]
-    ports:
-      # Host port comes from SCRAPER_PORT in .env (default 8080). The container side stays 8080.
-      - "127.0.0.1:${SCRAPER_PORT:-8080}:8080"   # localhost only, see the warning above
     volumes:
       - gmaps_data:/gmapsdata    # job results; they persist until you delete the job or the volume
       - gmaps_cache:/opt         # Playwright browser cache, so restarts skip the download
+
+  web-ui:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    depends_on:
+      - google-maps-scraper
+    ports:
+      # Expose the UI/API only on localhost; the engine is internal to this network.
+      - "127.0.0.1:${SCRAPER_PORT:-8080}:8080"
+    volumes:
+      - ./docker/web-ui.conf:/etc/nginx/conf.d/default.conf:ro
 
 volumes:
   gmaps_data:

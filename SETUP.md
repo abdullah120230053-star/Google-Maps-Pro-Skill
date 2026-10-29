@@ -72,6 +72,9 @@ curl -f http://localhost:8080/api/v1/jobs
 
 Use your configured port if different. The web UI is at the API host's root; API docs are at `/api/docs`.
 The Compose port mapping binds only to `127.0.0.1`. Keep this boundary: the engine has no built-in authentication.
+Compose routes requests through a small Nginx proxy that points the **Star on GitHub** button to the
+PRO repository. The engine itself stays internal to the Compose network. The direct `docker run`
+fallback below runs the original engine interface without this link customization.
 
 ### Apple Silicon
 
