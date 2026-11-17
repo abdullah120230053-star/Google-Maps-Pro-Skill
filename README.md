@@ -1,3 +1,15 @@
+<div align="center">
+
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&size=22&pause=1000&color=2E9FFF&center=true&vCenter=true&width=700&lines=Google%20Maps%20Scraper%20PRO;Turn%20Searches%20Into%20Scored%20Leads;No%20API%20Key%20Required)](https://git.io/typing-svg)
+
+[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-abdullah120230053--star-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/abdullah120230053-star)
+
+</div>
+
+---
+
 # Google Maps Scraper PRO
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -500,3 +512,15 @@ Scraping engine: [Georgios Komninos / gosom](https://github.com/gosom/google-map
 
 Released under the [MIT License](LICENSE). See [CREDITS.md](CREDITS.md) for upstream attribution
 and the engine license notice.
+
+---
+
+<div align="center">
+
+### Explore More Projects
+
+[👤 Profile](https://github.com/abdullah120230053-star) · [Ksystem](https://github.com/abdullah120230053-star/Ksystem) · [AirPad](https://github.com/abdullah120230053-star/AirPad) · [HSystem](https://github.com/abdullah120230053-star/HSystem) · [Location-](https://github.com/abdullah120230053-star/Location-) · [iSystem](https://github.com/abdullah120230053-star/iSystem)
+
+*Built by [abdullah120230053-star](https://github.com/abdullah120230053-star)*
+
+</div>
